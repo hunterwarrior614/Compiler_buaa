@@ -1,39 +1,41 @@
 package frontend.lexer;
 
+import frontend.error.Error;
+import frontend.error.ErrorRecorder;
+
 import java.io.BufferedWriter;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.io.PushbackInputStream;
 import java.util.ArrayList;
 
 public class Lexer {
-    private final ArrayList<Token> tokens = new ArrayList<>();
-    private final ArrayList<Error> errors = new ArrayList<>();
-    private final String input;
-
-    private int lineno = 1;
-    private int pos = -1;
-    private char c;
+    private final PushbackInputStream reader;
+    private final ArrayList<Token> tokens;
+    private int lineNumber;
+    private char currentChar;
 
 
-    public Lexer(String input) {
-        this.input = input + "\0\0";
-        analyse();
+    public Lexer(PushbackInputStream reader) throws IOException {
+        this.reader = reader;
+        tokens = new ArrayList<>();
+        lineNumber = 1;
+        currentChar = (char) reader.read();
     }
 
-    private void analyse() {
-        nextSym();
+    public void analyse() throws IOException {
         while (notEnd()) {
             StringBuilder sb = new StringBuilder();
             // 空白符
-            if (Character.isWhitespace(c)) {
-                nextSym();
+            if (Character.isWhitespace(currentChar)) {
+                next();
             }
             // 字母或下划线
-            else if (Character.isLetter(c) || c == '_') {
+            else if (Character.isLetter(currentChar) || currentChar == '_') {
                 do {
-                    sb.append(c);
-                    nextSym();
-                } while (Character.isLetter(c) || Character.isDigit(c) || c == '_');
+                    sb.append(currentChar);
+                    next();
+                } while (Character.isLetter(currentChar) || Character.isDigit(currentChar) || currentChar == '_');
                 String content = sb.toString();
                 // IDENFR 与 关键字
                 tokens.add(new Token(switch (content) {
@@ -53,109 +55,109 @@ public class Lexer {
                 }, content));
             }
             // INTCON
-            else if (c == '0') {
+            else if (currentChar == '0') {
                 tokens.add(new Token(Token.Type.INTCON, "0"));
-                nextSym();
-            } else if (Character.isDigit(c)) {
+                next();
+            } else if (Character.isDigit(currentChar)) {
                 do {
-                    sb.append(c);
-                    nextSym();
-                } while (Character.isDigit(c));
+                    sb.append(currentChar);
+                    next();
+                } while (Character.isDigit(currentChar));
                 tokens.add(new Token(Token.Type.INTCON, sb.toString()));
             }
             // STRCON
-            else if (c == '"') {
+            else if (currentChar == '"') {
                 do {
-                    sb.append(c);
-                    nextSym();
-                } while (c != '"' && notEnd());
-                sb.append(c);
+                    sb.append(currentChar);
+                    next();
+                } while (currentChar != '"' && notEnd());
+                sb.append(currentChar);
                 tokens.add(new Token(Token.Type.STRCON, sb.toString()));
-                nextSym();
+                next();
             }
             // NEQ 和 NOT
-            else if (c == '!') {
-                nextSym();
-                if (c == '=') {
+            else if (currentChar == '!') {
+                next();
+                if (currentChar == '=') {
                     tokens.add(new Token(Token.Type.NEQ, "!="));
-                    nextSym();
+                    next();
                 } else {
                     tokens.add(new Token(Token.Type.NOT, "!"));
                 }
             }
             // AND 和 a类错误
-            else if (c == '&') {
-                nextSym();
-                if (c == '&') {
+            else if (currentChar == '&') {
+                next();
+                if (currentChar == '&') {
                     tokens.add(new Token(Token.Type.AND, "&&"));
-                    nextSym();
+                    next();
                 } else {
-                    errors.add(new Error(lineno));
+                    error();
                 }
             }
             // OR 和 a类错误
-            else if (c == '|') {
-                nextSym();
-                if (c == '|') {
+            else if (currentChar == '|') {
+                next();
+                if (currentChar == '|') {
                     tokens.add(new Token(Token.Type.OR, "||"));
-                    nextSym();
+                    next();
                 } else {
-                    errors.add(new Error(lineno));
+                    error();
                 }
             }
             // LEQ 和 LSS
-            else if (c == '<') {
-                nextSym();
-                if (c == '=') {
+            else if (currentChar == '<') {
+                next();
+                if (currentChar == '=') {
                     tokens.add(new Token(Token.Type.LEQ, "<="));
-                    nextSym();
+                    next();
                 } else {
                     tokens.add(new Token(Token.Type.LSS, "<"));
                 }
             }
             // GEQ 和 GRE
-            else if (c == '>') {
-                nextSym();
-                if (c == '=') {
+            else if (currentChar == '>') {
+                next();
+                if (currentChar == '=') {
                     tokens.add(new Token(Token.Type.GEQ, ">="));
-                    nextSym();
+                    next();
                 } else {
                     tokens.add(new Token(Token.Type.GRE, ">"));
                 }
             }
             // EQL 和 ASSIGN
-            else if (c == '=') {
-                nextSym();
-                if (c == '=') {
+            else if (currentChar == '=') {
+                next();
+                if (currentChar == '=') {
                     tokens.add(new Token(Token.Type.EQL, "=="));
-                    nextSym();
+                    next();
                 } else {
                     tokens.add(new Token(Token.Type.ASSIGN, "="));
                 }
             }
             // 注释 和 除法
-            else if (c == '/') {
-                nextSym();
-                if (c == '/') {
+            else if (currentChar == '/') {
+                next();
+                if (currentChar == '/') {
                     do {
-                        nextSym();
-                    } while (c != '\n' && notEnd());
-                    nextSym();
-                } else if (c == '*') {
+                        next();
+                    } while (currentChar != '\n' && notEnd());
+                    next();
+                } else if (currentChar == '*') {
                     char lc;
-                    nextSym();
+                    next();
                     do {
-                        lc = c;
-                        nextSym();
-                    } while (!(lc == '*' && c == '/') && notEnd());
-                    nextSym();
+                        lc = currentChar;
+                        next();
+                    } while (!(lc == '*' && currentChar == '/') && notEnd());
+                    next();
                 } else {
                     tokens.add(new Token(Token.Type.DIV, "/"));
                 }
             } else {
-                sb.append(c);
+                sb.append(currentChar);
                 tokens.add(new Token(
-                        switch (c) {
+                        switch (currentChar) {
                             case '+' -> Token.Type.PLUS;
                             case '-' -> Token.Type.MINU;
                             case '*' -> Token.Type.MULT;
@@ -170,42 +172,27 @@ public class Lexer {
                             default -> Token.Type.RBRACE;
                         }, sb.toString())
                 );
-                nextSym();
+                next();
             }
         }
     }
 
-    private void nextSym() {
-        pos++;
-        c = input.charAt(pos);
-        if (c == '\n') {
-            lineno++;
+    private void next() throws IOException {
+        currentChar = (char) reader.read();
+        if (currentChar == '\n') {
+            lineNumber++;
         }
     }
 
     private boolean notEnd() {
-        return c != '\0';
+        return currentChar != '\uFFFF'; // EOF = -1, 转为 char 即是 255 (Unicode最大字符)
     }
 
-    public void writeToFile() {
-        boolean printError = !errors.isEmpty();
-        String filename = printError ? "error.txt" : "lexer.txt";
-        try (BufferedWriter writer = new BufferedWriter(new FileWriter(filename))) {
-            if (printError) {
-                for (Error error : errors) {
-                    writer.write(error.getLineno() + " " + error.getType());
-                    writer.newLine();
-                }
-            } else {
-                for (Token token : tokens) {
-                    writer.write(token.type() + " " + token.content());
-                    writer.newLine(); // 换行
-                }
-            }
-            System.out.println("已成功写入文件:" + filename);
-        } catch (IOException e) {
-            System.err.println("写入文件时出错: " + e.getMessage());
-        }
+    private void error() {
+        ErrorRecorder.addError(new Error(Error.Type.a, lineNumber));
+    }
 
+    public ArrayList<Token> getTokenList() {
+        return tokens;
     }
 }

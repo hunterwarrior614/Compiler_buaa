@@ -1,15 +1,20 @@
-import frontend.lexer.Lexer;
+import frontend.FrontEnd;
+import frontend.error.ErrorRecorder;
+import utils.IOHandler;
 
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Paths;
 
 public class Compiler {
     public static void main(String[] args) throws IOException {
-        String input = Files.readString(Paths.get("testfile.txt"));
+        IOHandler.initialize(); // 初始化输入输出流
 
-        Lexer lexer = new Lexer(input);
+        FrontEnd.initialize();  // 初始化输入、lexer与parser
+        FrontEnd.generateTokenList();   // 词法分析
 
-        lexer.writeToFile();
+        if (ErrorRecorder.hasErrors()) {
+            IOHandler.printError();
+        } else {
+            IOHandler.printTokenList(); // 输出词法分析
+        }
     }
 }
