@@ -3,6 +3,7 @@ package frontend;
 import frontend.lexer.Lexer;
 import frontend.lexer.Token;
 import frontend.parser.Parser;
+import frontend.parser.ast.Node;
 import utils.IOHandler;
 
 import java.io.IOException;
@@ -29,5 +30,9 @@ public class FrontEnd {
 
     public static ArrayList<Token> getTokenList() {
         return lexer.getTokenList();
+    }
+
+    public static Node getAstTree() {
+        return parser.getAstTree();
     }
 }

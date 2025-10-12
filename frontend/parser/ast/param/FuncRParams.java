@@ -1,0 +1,22 @@
+package frontend.parser.ast.param;
+
+import frontend.parser.ast.Node;
+import frontend.parser.ast.SyntaxType;
+import frontend.parser.ast.TokenNode;
+import frontend.parser.ast.exp.Exp;
+
+public class FuncRParams extends Node {
+    // FuncRParams → Exp { ',' Exp }
+    public FuncRParams() {
+        super(SyntaxType.FUNC_REAL_PARAMS);
+    }
+
+    @Override
+    public void parse() {
+        addAndParseNode(new Exp());
+        while (isCommaToken()) {
+            addAndParseNode(new TokenNode());   // ','
+            addAndParseNode(new Exp());
+        }
+    }
+}

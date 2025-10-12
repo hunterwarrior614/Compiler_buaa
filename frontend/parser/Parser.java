@@ -1,21 +1,25 @@
 package frontend.parser;
 
 import frontend.lexer.Token;
+import frontend.lexer.TokenStream;
 import frontend.parser.ast.CompUnit;
-import frontend.parser.ast.FirstSet;
+import frontend.parser.ast.Node;
 
 import java.util.ArrayList;
 
 public class Parser {
-    private final ArrayList<Token> tokens;
-    private CompUnit astTree;
+    private final CompUnit rootNode;
 
     public Parser(ArrayList<Token> tokens) {
-        this.tokens = tokens;
-        FirstSet.initialize();
+        Node.initialize(new TokenStream(tokens));
+        rootNode = new CompUnit();
     }
 
     public void parse() {
-        // astTree = new CompUnit();
+        rootNode.parse();
+    }
+
+    public CompUnit getAstTree() {
+        return rootNode;
     }
 }

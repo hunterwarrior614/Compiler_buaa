@@ -52,18 +52,18 @@ public class Lexer {
                     case "void" -> Token.Type.VOIDTK;
                     case "printf" -> Token.Type.PRINTFTK;
                     default -> Token.Type.IDENFR;
-                }, content));
+                }, content, lineNumber));
             }
             // INTCON
             else if (currentChar == '0') {
-                tokens.add(new Token(Token.Type.INTCON, "0"));
+                tokens.add(new Token(Token.Type.INTCON, "0", lineNumber));
                 next();
             } else if (Character.isDigit(currentChar)) {
                 do {
                     sb.append(currentChar);
                     next();
                 } while (Character.isDigit(currentChar));
-                tokens.add(new Token(Token.Type.INTCON, sb.toString()));
+                tokens.add(new Token(Token.Type.INTCON, sb.toString(), lineNumber));
             }
             // STRCON
             else if (currentChar == '"') {
@@ -72,26 +72,27 @@ public class Lexer {
                     next();
                 } while (currentChar != '"' && notEnd());
                 sb.append(currentChar);
-                tokens.add(new Token(Token.Type.STRCON, sb.toString()));
+                tokens.add(new Token(Token.Type.STRCON, sb.toString(), lineNumber));
                 next();
             }
             // NEQ 和 NOT
             else if (currentChar == '!') {
                 next();
                 if (currentChar == '=') {
-                    tokens.add(new Token(Token.Type.NEQ, "!="));
+                    tokens.add(new Token(Token.Type.NEQ, "!=", lineNumber));
                     next();
                 } else {
-                    tokens.add(new Token(Token.Type.NOT, "!"));
+                    tokens.add(new Token(Token.Type.NOT, "!", lineNumber));
                 }
             }
             // AND 和 a类错误
             else if (currentChar == '&') {
                 next();
                 if (currentChar == '&') {
-                    tokens.add(new Token(Token.Type.AND, "&&"));
+                    tokens.add(new Token(Token.Type.AND, "&&", lineNumber));
                     next();
                 } else {
+                    tokens.add(new Token(Token.Type.AND, "&&", lineNumber));
                     error();
                 }
             }
@@ -99,9 +100,10 @@ public class Lexer {
             else if (currentChar == '|') {
                 next();
                 if (currentChar == '|') {
-                    tokens.add(new Token(Token.Type.OR, "||"));
+                    tokens.add(new Token(Token.Type.OR, "||", lineNumber));
                     next();
                 } else {
+                    tokens.add(new Token(Token.Type.OR, "||", lineNumber));
                     error();
                 }
             }
@@ -109,30 +111,30 @@ public class Lexer {
             else if (currentChar == '<') {
                 next();
                 if (currentChar == '=') {
-                    tokens.add(new Token(Token.Type.LEQ, "<="));
+                    tokens.add(new Token(Token.Type.LEQ, "<=", lineNumber));
                     next();
                 } else {
-                    tokens.add(new Token(Token.Type.LSS, "<"));
+                    tokens.add(new Token(Token.Type.LSS, "<", lineNumber));
                 }
             }
             // GEQ 和 GRE
             else if (currentChar == '>') {
                 next();
                 if (currentChar == '=') {
-                    tokens.add(new Token(Token.Type.GEQ, ">="));
+                    tokens.add(new Token(Token.Type.GEQ, ">=", lineNumber));
                     next();
                 } else {
-                    tokens.add(new Token(Token.Type.GRE, ">"));
+                    tokens.add(new Token(Token.Type.GRE, ">", lineNumber));
                 }
             }
             // EQL 和 ASSIGN
             else if (currentChar == '=') {
                 next();
                 if (currentChar == '=') {
-                    tokens.add(new Token(Token.Type.EQL, "=="));
+                    tokens.add(new Token(Token.Type.EQL, "==", lineNumber));
                     next();
                 } else {
-                    tokens.add(new Token(Token.Type.ASSIGN, "="));
+                    tokens.add(new Token(Token.Type.ASSIGN, "=", lineNumber));
                 }
             }
             // 注释 和 除法
@@ -152,7 +154,7 @@ public class Lexer {
                     } while (!(lc == '*' && currentChar == '/') && notEnd());
                     next();
                 } else {
-                    tokens.add(new Token(Token.Type.DIV, "/"));
+                    tokens.add(new Token(Token.Type.DIV, "/", lineNumber));
                 }
             } else {
                 sb.append(currentChar);
@@ -170,7 +172,7 @@ public class Lexer {
                             case ']' -> Token.Type.RBRACK;
                             case '{' -> Token.Type.LBRACE;
                             default -> Token.Type.RBRACE;
-                        }, sb.toString())
+                        }, sb.toString(), lineNumber)
                 );
                 next();
             }
