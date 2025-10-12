@@ -51,7 +51,7 @@ public class Stmt extends Node {
             }
             addAndParseNode(new TokenNode());   // ';'
             // [ForStmt]
-            if (!isRightParenToken()) {
+            if (!isRightParenToken() && getCurrentToken().getType().equals(Token.Type.IDENFR)) {
                 addAndParseNode(new ForStmt());
             }
             checkRightParen();   // ')'
@@ -71,7 +71,7 @@ public class Stmt extends Node {
         else if (getCurrentToken().getType().equals(Token.Type.RETURNTK)) {
             addAndParseNode(new TokenNode());   // 'return'
             // [Exp]
-            if (!isSemicolonToken()) {
+            if (!isSemicolonToken() && isExp()) {
                 addAndParseNode(new Exp());
             }
             checkSemicolon();   // ';'
@@ -85,8 +85,8 @@ public class Stmt extends Node {
                 addAndParseNode(new TokenNode());   // ','
                 addAndParseNode(new Exp()); // Exp
             }
-            addAndParseNode(new TokenNode());   // ')'
-            checkSemicolon();
+            checkRightParen();   // ')'
+            checkSemicolon();   // ';'
         }
         // Block
         else if (isLeftBraceToken()) {
@@ -102,11 +102,17 @@ public class Stmt extends Node {
         // [Exp] ';'
         else {
             // [Exp]
-            if (!isSemicolonToken()) {
+            if (!isSemicolonToken() && isExp()) {
                 addAndParseNode(new Exp());
             }
             checkSemicolon();
         }
+    }
+
+    private boolean isExp() {
+        Token.Type curTokenType = getCurrentToken().getType();
+        return curTokenType.equals(Token.Type.LPARENT) || curTokenType.equals(Token.Type.INTCON) || curTokenType.equals(Token.Type.IDENFR)
+                || curTokenType.equals(Token.Type.PLUS) || curTokenType.equals(Token.Type.MINU) || curTokenType.equals(Token.Type.NOT);
     }
 
     private boolean isCond1() {

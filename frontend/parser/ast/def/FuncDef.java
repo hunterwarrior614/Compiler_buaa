@@ -1,5 +1,6 @@
 package frontend.parser.ast.def;
 
+import frontend.lexer.Token;
 import frontend.parser.ast.stmt.Block;
 import frontend.parser.ast.param.FuncFParams;
 import frontend.parser.ast.Node;
@@ -17,7 +18,7 @@ public class FuncDef extends Node {
         addAndParseNode(new FuncType());    // FuncType
         addAndParseNode(new TokenNode());   // Ident
         addAndParseNode(new TokenNode());   // '('
-        if (!isRightParenToken()) {
+        if (!isRightParenToken() && getCurrentToken().getType().equals(Token.Type.INTTK)) {
             addAndParseNode(new FuncFParams()); // FuncFParams
         }
         checkRightParen();   // ')'

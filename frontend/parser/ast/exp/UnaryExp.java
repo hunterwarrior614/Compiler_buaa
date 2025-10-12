@@ -28,7 +28,7 @@ public class UnaryExp extends Node {
             addAndParseNode(new TokenNode());   // Ident
             addAndParseNode(new TokenNode());   // '('
             // [FuncRParams]
-            if (!isRightParenToken()) {
+            if (!isRightParenToken() && isFuncRParams()) {
                 addAndParseNode(new FuncRParams());
             }
             checkRightParen();   // ')'
@@ -45,9 +45,15 @@ public class UnaryExp extends Node {
         return !(getCurrentToken().getType().equals(Token.Type.IDENFR) && peekToken(1).getType().equals(Token.Type.LPARENT));
     }
 
+    private boolean isFuncRParams() {
+        Token.Type curTokenType = getCurrentToken().getType();
+        return curTokenType.equals(Token.Type.LPARENT) || curTokenType.equals(Token.Type.INTCON) || curTokenType.equals(Token.Type.IDENFR)
+                || curTokenType.equals(Token.Type.PLUS) || curTokenType.equals(Token.Type.MINU) || curTokenType.equals(Token.Type.NOT);
+    }
+
     private void reConstruct() {
         ArrayList<Node> components = getComponents();
-        if (components.get(0) instanceof UnaryExp) {
+        if (components.get(0) instanceof UnaryOp) {
             UnaryExp unaryExp = new UnaryExp();
             unaryExp.addNodes(components.subList(1, components.size()));
             components.subList(1, components.size()).clear();
