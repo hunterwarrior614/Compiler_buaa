@@ -25,4 +25,12 @@ public class TokenStream {
         }
         return tokens.get(readPosition);
     }
+
+    public int getCurPos() {
+        return readPosition;
+    }
+
+    public void setReadPosition(int readPosition) {
+        this.readPosition = readPosition;
+    }
 }

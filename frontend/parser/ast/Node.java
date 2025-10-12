@@ -4,8 +4,6 @@ import frontend.error.Error;
 import frontend.error.ErrorRecorder;
 import frontend.lexer.Token;
 import frontend.lexer.TokenStream;
-import frontend.parser.ast.decl.Decl;
-import frontend.parser.ast.def.BType;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -53,6 +51,15 @@ public abstract class Node {
 
     protected ArrayList<Node> getComponents() {
         return components;
+    }
+
+    protected int getCurTokenPos() {
+        return tokenStream.getCurPos();
+    }
+
+    protected void setTokenStreamPos(int tokenStreamPos) {
+        tokenStream.setReadPosition(tokenStreamPos);
+        currentToken = tokenStream.peek(0);
     }
 
     /* 语法错误检查 */

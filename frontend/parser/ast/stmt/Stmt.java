@@ -92,12 +92,25 @@ public class Stmt extends Node {
         else if (isLeftBraceToken()) {
             addAndParseNode(new Block());
         }
-        // LVal '=' Exp ';'
-        else if (isCond1()) {
-            addAndParseNode(new LVal());    // LVal
-            addAndParseNode(new TokenNode());   // '='
-            addAndParseNode(new Exp()); // Exp
-            checkSemicolon();
+        // LVal '=' Exp ';' 或者 Exp ';'
+        else if (getCurrentToken().getType().equals(Token.Type.IDENFR)) {
+            int originPos = getCurTokenPos();
+            LVal lval = new LVal();
+            lval.parse();
+            // LVal '=' Exp ';'
+            if (getCurrentToken().getType().equals(Token.Type.ASSIGN)) {
+                setTokenStreamPos(originPos);   // 回溯
+                addAndParseNode(new LVal());    // LVal
+                addAndParseNode(new TokenNode());   // '='
+                addAndParseNode(new Exp()); // Exp
+                checkSemicolon();   // ';'
+            }
+            // Exp ';'
+            else {
+                setTokenStreamPos(originPos);   // 回溯
+                addAndParseNode(new Exp()); // Exp
+                checkSemicolon();   // ';'
+            }
         }
         // [Exp] ';'
         else {
@@ -113,18 +126,5 @@ public class Stmt extends Node {
         Token.Type curTokenType = getCurrentToken().getType();
         return curTokenType.equals(Token.Type.LPARENT) || curTokenType.equals(Token.Type.INTCON) || curTokenType.equals(Token.Type.IDENFR)
                 || curTokenType.equals(Token.Type.PLUS) || curTokenType.equals(Token.Type.MINU) || curTokenType.equals(Token.Type.NOT);
-    }
-
-    private boolean isCond1() {
-        int peekStep = 0;
-        boolean findAssignToken = false;
-        while (!peekToken(peekStep).getType().equals(Token.Type.EOF) && !peekToken(peekStep).getType().equals(Token.Type.SEMICN)) {
-            if (peekToken(peekStep).getType().equals(Token.Type.ASSIGN)) {
-                findAssignToken = true;
-                break;
-            }
-            peekStep++;
-        }
-        return findAssignToken;
     }
 }

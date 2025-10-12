@@ -26,8 +26,13 @@ public class Lexer {
     public void analyse() throws IOException {
         while (notEnd()) {
             StringBuilder sb = new StringBuilder();
+            // 换行符
+            if (currentChar == '\n') {
+                lineNumber++;
+                next();
+            }
             // 空白符
-            if (Character.isWhitespace(currentChar)) {
+            else if (Character.isWhitespace(currentChar)) {
                 next();
             }
             // 字母或下划线
@@ -140,20 +145,27 @@ public class Lexer {
             // 注释 和 除法
             else if (currentChar == '/') {
                 next();
+                // 单行注释
                 if (currentChar == '/') {
                     do {
                         next();
                     } while (currentChar != '\n' && notEnd());
-                    next();
-                } else if (currentChar == '*') {
+                }
+                // 多行注释
+                else if (currentChar == '*') {
                     char lc;
                     next();
                     do {
+                        if (currentChar == '\n') {
+                            lineNumber++;
+                        }
                         lc = currentChar;
                         next();
                     } while (!(lc == '*' && currentChar == '/') && notEnd());
                     next();
-                } else {
+                }
+                // 除法
+                else {
                     tokens.add(new Token(Token.Type.DIV, "/", lineNumber));
                 }
             } else {
@@ -181,9 +193,6 @@ public class Lexer {
 
     private void next() throws IOException {
         currentChar = (char) reader.read();
-        if (currentChar == '\n') {
-            lineNumber++;
-        }
     }
 
     private boolean notEnd() {
