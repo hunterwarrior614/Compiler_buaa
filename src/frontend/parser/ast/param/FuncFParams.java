@@ -3,13 +3,18 @@ package frontend.parser.ast.param;
 import frontend.parser.ast.Node;
 import frontend.parser.ast.SyntaxType;
 import frontend.parser.ast.TokenNode;
+import midend.symbol.Symbol;
+import midend.symbol.SymbolType;
 
 import java.util.ArrayList;
 
 public class FuncFParams extends Node {
     // FuncFParams → FuncFParam { ',' FuncFParam }
+    private final ArrayList<FuncFParam> funcFParams;
+
     public FuncFParams() {
         super(SyntaxType.FUNC_FORMAL_PARAMS);
+        this.funcFParams = new ArrayList<>();
     }
 
     @Override
@@ -17,18 +22,17 @@ public class FuncFParams extends Node {
         addAndParseNode(new FuncFParam());  // FuncFParam
         while (isCommaToken()) {
             addAndParseNode(new TokenNode());   // ','
-            addAndParseNode(new FuncFParam());  // FuncFParam
+            FuncFParam funcFParam = new FuncFParam();
+            addAndParseNode(funcFParam);  // FuncFParam
+            funcFParams.add(funcFParam);
         }
     }
 
-    @Override
-    public void visit() {
-        ArrayList<Node> components = getComponents();
-        components.get(0).visit();  // FuncFParam
-        int idx = 1;
-        while (idx < components.size() - 1) {
-            components.get(idx + 1).visit();
-            idx += 2;
+    public ArrayList<SymbolType> getParamsType() {
+        ArrayList<SymbolType> types = new ArrayList<>();
+        for (FuncFParam param : funcFParams) {
+            types.add(param.getParamType());
         }
+        return types;
     }
 }

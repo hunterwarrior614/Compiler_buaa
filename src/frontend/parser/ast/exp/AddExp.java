@@ -5,6 +5,7 @@ import frontend.lexer.TokenType;
 import frontend.parser.ast.Node;
 import frontend.parser.ast.SyntaxType;
 import frontend.parser.ast.TokenNode;
+import midend.symbol.SymbolType;
 
 import java.util.ArrayList;
 
@@ -42,6 +43,15 @@ public class AddExp extends Node {
             components.add(0, addExp);
             // 递归重建
             addExp.reConstruct();
+        }
+    }
+
+    public SymbolType getSymbolType() {
+        ArrayList<Node> components = getComponents();
+        if (components.size() > 1) {
+            return SymbolType.VAR;
+        } else {
+            return ((MulExp) components.get(0)).getSymbolType();
         }
     }
 }

@@ -1,6 +1,7 @@
 package frontend.parser.ast.stmt;
 
-import frontend.lexer.Token;
+import error.Error;
+import error.ErrorRecorder;
 import frontend.lexer.TokenType;
 import frontend.parser.ast.Node;
 import frontend.parser.ast.SyntaxType;
@@ -8,6 +9,7 @@ import frontend.parser.ast.TokenNode;
 import frontend.parser.ast.exp.Exp;
 import frontend.parser.ast.val.LVal;
 import midend.symbol.SymbolManager;
+import midend.symbol.SymbolType;
 
 import java.util.ArrayList;
 
@@ -22,6 +24,15 @@ public class Stmt extends Node {
              | 'return' [Exp] ';'
              | 'printf''('StringConst {','Exp}')'';'
     */
+    private SymbolType funcType = null;
+    private boolean hasReturnValue = false;
+
+    private int printfFStrCount = 0;
+    private int printfExpCount = 0;
+
+    private boolean inLoopBlock = false;
+    private boolean forStmt = false;
+
     public Stmt() {
         super(SyntaxType.STATEMENT);
     }
@@ -77,6 +88,7 @@ public class Stmt extends Node {
             // [Exp]
             if (!isSemicolonToken() && isExp()) {
                 addAndParseNode(new Exp());
+                hasReturnValue = true;
             }
             checkSemicolon();   // ';'
         }
@@ -84,10 +96,13 @@ public class Stmt extends Node {
         else if (getCurrentToken().getType().equals(TokenType.PRINTFTK)) {
             addAndParseNode(new TokenNode());   // 'printf'
             addAndParseNode(new TokenNode());   // '('
-            addAndParseNode(new TokenNode());   // StringConst
+            TokenNode strConToken = new TokenNode();
+            addAndParseNode(strConToken);   // StringConst
+            countPrintfFStr(strConToken);
             while (isCommaToken()) {
                 addAndParseNode(new TokenNode());   // ','
                 addAndParseNode(new Exp()); // Exp
+                printfExpCount++;
             }
             checkRightParen();   // ')'
             checkSemicolon();   // ';'
@@ -138,9 +153,91 @@ public class Stmt extends Node {
         // 如果是Block，就要进入新的作用域，需要创建字符号表
         if (components.get(0) instanceof Block) {
             SymbolManager.createSonSymbolTable();
-            super.visit();
-        } else {
-            super.visit();
+        }
+        for (Node node : components) {
+            if (node instanceof ForStmt) {
+                forStmt = true;
+            }
+            setLoopBlock(node);
+            node.visit();
+            checkReturn(node);
+            checkModified(node);
+            checkPrintf(node);
+            checkBreakOrContinue(node);
+        }
+    }
+
+    public void setFuncType(SymbolType funcType) {
+        this.funcType = funcType;
+    }
+
+    private void checkReturn(Node node) {
+        if (!(node instanceof TokenNode tokenNode && tokenNode.isTypeOfToken(TokenType.RETURNTK)) || funcType == null) {
+            return;
+        }
+        int returnLineNumber = tokenNode.getLineNumber();
+        // 无返回值的函数存在不匹配的return语句
+        if (funcType == SymbolType.VOID_FUNC && hasReturnValue) {
+            ErrorRecorder.addError(new Error(Error.Type.f, returnLineNumber));
+        }
+    }
+
+    public boolean hasReturnValue() {
+        return hasReturnValue;
+    }
+
+    private void checkModified(Node node) {
+        if (!(node instanceof LVal lVal)) {
+            return;
+        }
+        int lValLineNumber = lVal.getLineNumber();
+        // 不能改变常量的值
+        if (lVal.isConstVar()) {
+            ErrorRecorder.addError(new Error(Error.Type.h, lValLineNumber));
+        }
+    }
+
+    private void countPrintfFStr(TokenNode strConToken) {
+        String conStr = strConToken.getTokenValue();
+        for (int i = 0; i < conStr.length() - 1; i++) {
+            if (conStr.charAt(i) == '%' && conStr.charAt(i + 1) == 'd') {
+                printfFStrCount++;
+            }
+        }
+    }
+
+    private void checkPrintf(Node node) {
+        if (!(node instanceof TokenNode tokenNode && tokenNode.isTypeOfToken(TokenType.PRINTFTK))) {
+            return;
+        }
+        int printfLineNumber = tokenNode.getLineNumber();
+        //  printf中格式字符与表达式个数不匹配
+        if (printfFStrCount != printfExpCount) {
+            ErrorRecorder.addError(new Error(Error.Type.l, printfLineNumber));
+        }
+    }
+
+    public void setLoopBlock() {
+        inLoopBlock = true;
+    }
+
+    private void setLoopBlock(Node node) {
+        if (!(node instanceof Stmt stmt)) {
+            return;
+        }
+        if (forStmt || inLoopBlock) {
+            stmt.setLoopBlock();
+        }
+    }
+
+    private void checkBreakOrContinue(Node node) {
+        if (!(node instanceof TokenNode tokenNode && (tokenNode.isTypeOfToken(TokenType.BREAKTK) || tokenNode.isTypeOfToken(TokenType.CONTINUETK)))) {
+            return;
+        }
+        int errorLineNumber = tokenNode.getLineNumber();
+        // 在非循环块中使用break和continue语句
+        if (!inLoopBlock) {
+            ErrorRecorder.addError(new Error(Error.Type.m, errorLineNumber));
         }
     }
 }

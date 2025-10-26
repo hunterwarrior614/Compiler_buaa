@@ -1,10 +1,16 @@
 package frontend.parser.ast.exp;
 
+import error.Error;
+import error.ErrorRecorder;
 import frontend.lexer.TokenType;
+import frontend.parser.ast.Ident;
 import frontend.parser.ast.param.FuncRParams;
 import frontend.parser.ast.Node;
 import frontend.parser.ast.SyntaxType;
 import frontend.parser.ast.TokenNode;
+import midend.symbol.Symbol;
+import midend.symbol.SymbolManager;
+import midend.symbol.SymbolType;
 
 import java.util.ArrayList;
 
@@ -25,7 +31,7 @@ public class UnaryExp extends Node {
         if (isPrimaryExp()) {
             addAndParseNode(new PrimaryExp());
         } else {
-            addAndParseNode(new TokenNode());   // Ident
+            addAndParseNode(new Ident());   // Ident
             addAndParseNode(new TokenNode());   // '('
             // [FuncRParams]
             if (!isRightParenToken() && isFuncRParams()) {
@@ -34,6 +40,27 @@ public class UnaryExp extends Node {
             checkRightParen();   // ')'
         }
         reConstruct();
+    }
+
+    @Override
+    public void visit() {
+        ArrayList<Node> components = getComponents();
+        Symbol func = null;
+        int lineNumber = 0;
+        for (Node node : components) {
+            node.visit();
+            if (node instanceof Ident ident) {
+                String identName = ident.getTokenValue();
+                lineNumber = ident.getLineNumber();
+                Symbol symbol = SymbolManager.getSymbol(identName);
+                if (symbol == null) {
+                    ErrorRecorder.addError(new Error(Error.Type.c, lineNumber));
+                } else {
+                    func = symbol;
+                }
+            }
+            checkFuncParams(func, node, lineNumber);
+        }
     }
 
     private boolean isUnaryOp() {
@@ -59,6 +86,37 @@ public class UnaryExp extends Node {
             components.subList(1, components.size()).clear();
             components.add(unaryExp);
             unaryExp.reConstruct();
+        }
+    }
+
+
+    private void checkFuncParams(Symbol func, Node node, int lineNumber) {
+        if (!(node instanceof FuncRParams funcRParams)) {
+            return;
+        }
+
+        // 函数参数个数是否匹配
+        ArrayList<Exp> realParams = funcRParams.getParamList();
+        if (!func.paramsSizeEqual(realParams)) {
+            ErrorRecorder.addError(new Error(Error.Type.d, lineNumber));
+            return;
+        }
+        // 函数参数类型是否匹配
+        ArrayList<SymbolType> realParamsType = new ArrayList<>();
+        for (Exp exp : realParams) {
+            realParamsType.add(exp.getSymbolType());
+        }
+        if (!func.paramsTypeEqual(realParamsType)) {
+            ErrorRecorder.addError(new Error(Error.Type.e, lineNumber));
+        }
+    }
+
+    public SymbolType getSymbolType() {
+        ArrayList<Node> components = getComponents();
+        if (components.size() > 1) {
+            return SymbolType.VAR;
+        } else {
+            return ((PrimaryExp) components.get(0)).getSymbolType();
         }
     }
 }

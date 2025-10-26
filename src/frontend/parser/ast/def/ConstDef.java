@@ -1,6 +1,6 @@
 package frontend.parser.ast.def;
 
-import frontend.lexer.TokenType;
+import frontend.parser.ast.Ident;
 import frontend.parser.ast.val.ConstInitVal;
 import frontend.parser.ast.Node;
 import frontend.parser.ast.SyntaxType;
@@ -21,7 +21,7 @@ public class ConstDef extends Node {
 
     @Override
     public void parse() {
-        addAndParseNode(new TokenNode());   // Ident
+        addAndParseNode(new Ident());   // Ident
         // [ '[' ConstExp ']' ]
         if (isLeftBracketToken()) {
             addAndParseNode(new TokenNode());
@@ -34,15 +34,24 @@ public class ConstDef extends Node {
 
     @Override
     public void visit() {
+        String symbolName = "";
+        SymbolType symbolType;
+        int identLineNumber = 0;
+        int dimension = 0;
+
         ArrayList<Node> components = getComponents();
-        String symbolName = ((TokenNode) components.get(0)).getTokenValue();
-        // ConstIntArray
-        if (components.get(1).isTypeOfToken(TokenType.LBRACK)) {
-            SymbolManager.addSymbol(SymbolType.CONST_INT_ARRAY, symbolName);
+        for (Node node : components) {
+            if (node instanceof Ident ident) {
+                symbolName = ident.getTokenValue();
+                identLineNumber = ident.getLineNumber();
+            }
+            if (node instanceof ConstExp) {
+                dimension++;
+            }
+            node.visit();
         }
-        // ConstInt
-        else {
-            SymbolManager.addSymbol(SymbolType.CONST_INT, symbolName);
-        }
+
+        symbolType = dimension == 0 ? SymbolType.CONST_INT : SymbolType.CONST_INT_ARRAY;
+        SymbolManager.addSymbol(new Symbol(symbolType, symbolName, identLineNumber));
     }
 }

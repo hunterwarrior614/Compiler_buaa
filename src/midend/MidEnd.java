@@ -15,6 +15,7 @@ public class MidEnd {
     }
 
     public static SymbolTable getSymbolTable() {
+        SymbolManager.deleteSystemSymbol();
         return SymbolManager.getRootSymbolTable();
     }
 }

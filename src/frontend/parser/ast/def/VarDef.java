@@ -1,11 +1,12 @@
 package frontend.parser.ast.def;
 
-import frontend.lexer.TokenType;
+import frontend.parser.ast.Ident;
 import frontend.parser.ast.Node;
 import frontend.parser.ast.SyntaxType;
 import frontend.parser.ast.TokenNode;
 import frontend.parser.ast.exp.ConstExp;
 import frontend.parser.ast.val.InitVal;
+import midend.symbol.Symbol;
 import midend.symbol.SymbolManager;
 import midend.symbol.SymbolType;
 
@@ -19,7 +20,7 @@ public class VarDef extends Node {
 
     @Override
     public void parse() {
-        addAndParseNode(new TokenNode());   // Ident
+        addAndParseNode(new Ident());   // Ident
         // [ '[' ConstExp ']' ]
         if (isLeftBracketToken()) {
             addAndParseNode(new TokenNode());   // '['
@@ -34,26 +35,28 @@ public class VarDef extends Node {
     }
 
     public void visit(boolean isStatic) {
+        String symbolName = "";
+        SymbolType symbolType;
+        int identLineNumber = 0;
+        int dimension = 0;
+
         ArrayList<Node> components = getComponents();
-        String symbolName = ((TokenNode) components.get(0)).getTokenValue();
-        if (isStatic) {
-            // StaticIntArray
-            if (components.size() > 1 && components.get(1).isTypeOfToken(TokenType.LBRACK)) {
-                SymbolManager.addSymbol(SymbolType.STATIC_INT_ARRAY, symbolName);
+        for (Node node : components) {
+            if (node instanceof Ident ident) {
+                symbolName = ident.getTokenValue();
+                identLineNumber = ident.getLineNumber();
             }
-            // StaticInt
-            else {
-                SymbolManager.addSymbol(SymbolType.STATIC_INT, symbolName);
+            if (node instanceof ConstExp) {
+                dimension++;
             }
-        } else {
-            // IntArray
-            if (components.size() > 1 && components.get(1).isTypeOfToken(TokenType.LBRACK)) {
-                SymbolManager.addSymbol(SymbolType.INT_ARRAY, symbolName);
-            }
-            // Int
-            else {
-                SymbolManager.addSymbol(SymbolType.INT, symbolName);
-            }
+            node.visit();
         }
+
+        if (dimension == 0) {
+            symbolType = isStatic ? SymbolType.STATIC_INT : SymbolType.INT;
+        } else {
+            symbolType = isStatic ? SymbolType.STATIC_INT_ARRAY : SymbolType.INT_ARRAY;
+        }
+        SymbolManager.addSymbol(new Symbol(symbolType, symbolName, identLineNumber));
     }
 }

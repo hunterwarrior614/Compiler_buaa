@@ -9,6 +9,9 @@ public enum SymbolType {
     STATIC_INT_ARRAY("StaticIntArray"),
     VOID_FUNC("VoidFunc"),
     INT_FUNC("IntFunc"),
+    SYS_FUNC("SysFunc"),
+    VAR("Var"),
+    ARRAY("Array"),
     ;
 
     private final String typeName;

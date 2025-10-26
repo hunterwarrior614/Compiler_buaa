@@ -29,15 +29,4 @@ public class ConstDecl extends Node {
         // ';'
         checkSemicolon();
     }
-
-    @Override
-    public void visit() {
-        ArrayList<Node> components = getComponents();
-        components.get(2).visit();  // ConstDef
-        int idx = 3;
-        while (components.get(idx).isTypeOfToken(TokenType.COMMA)) {
-            components.get(idx + 1).visit();
-            idx += 2;
-        }
-    }
 }

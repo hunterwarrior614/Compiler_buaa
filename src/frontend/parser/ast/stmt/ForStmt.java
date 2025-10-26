@@ -1,10 +1,14 @@
 package frontend.parser.ast.stmt;
 
+import error.Error;
+import error.ErrorRecorder;
 import frontend.parser.ast.Node;
 import frontend.parser.ast.SyntaxType;
 import frontend.parser.ast.TokenNode;
 import frontend.parser.ast.exp.Exp;
 import frontend.parser.ast.val.LVal;
+
+import java.util.ArrayList;
 
 public class ForStmt extends Node {
     // ForStmt → LVal '=' Exp { ',' LVal '=' Exp }
@@ -22,6 +26,26 @@ public class ForStmt extends Node {
             addAndParseNode(new LVal());    // LVal
             addAndParseNode(new TokenNode());   // '='
             addAndParseNode(new Exp()); // Exp
+        }
+    }
+
+    @Override
+    public void visit() {
+        ArrayList<Node> components = getComponents();
+        for (Node node : components) {
+            node.visit();
+            checkModified(node);
+        }
+    }
+
+    private void checkModified(Node node) {
+        if (!(node instanceof LVal lVal)) {
+            return;
+        }
+        int lValLineNumber = lVal.getLineNumber();
+        // 不能改变常量的值
+        if (lVal.isConstVar()) {
+            ErrorRecorder.addError(new error.Error(Error.Type.h, lValLineNumber));
         }
     }
 }

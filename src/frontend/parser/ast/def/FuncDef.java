@@ -1,7 +1,7 @@
 package frontend.parser.ast.def;
 
-import frontend.lexer.Token;
 import frontend.lexer.TokenType;
+import frontend.parser.ast.Ident;
 import frontend.parser.ast.stmt.Block;
 import frontend.parser.ast.param.FuncFParams;
 import frontend.parser.ast.Node;
@@ -22,7 +22,7 @@ public class FuncDef extends Node {
     @Override
     public void parse() {
         addAndParseNode(new FuncType());    // FuncType
-        addAndParseNode(new TokenNode());   // Ident
+        addAndParseNode(new Ident());   // Ident
         addAndParseNode(new TokenNode());   // '('
         if (!isRightParenToken() && getCurrentToken().getType().equals(TokenType.INTTK)) {
             addAndParseNode(new FuncFParams()); // FuncFParams
@@ -34,20 +34,26 @@ public class FuncDef extends Node {
     @Override
     public void visit() {
         ArrayList<Node> components = getComponents();
-        TokenType funcType = ((FuncType) components.get(0)).getFuncType();
-        String symbolName = ((TokenNode) components.get(1)).getTokenValue();
-        SymbolType symbolType = funcType.equals(TokenType.INTTK) ? SymbolType.INT_FUNC : SymbolType.VOID_FUNC;
 
-        SymbolManager.addSymbol(symbolType, symbolName);    // 将函数填入当前符号表
+        SymbolType symbolType = ((FuncType) components.get(0)).getFuncType().equals(TokenType.INTTK) ? SymbolType.INT_FUNC : SymbolType.VOID_FUNC;
+        Ident ident = (Ident) components.get(1);
+        Symbol func = new Symbol(symbolType, ident.getTokenValue(), ident.getLineNumber());
+        SymbolManager.addSymbol(func);    // 将函数填入当前符号表
         SymbolManager.createSonSymbolTable();   // 即将进入内层作用域，创建子符号表
-        // 无参数
-        if (components.get(3).isTypeOfToken(TokenType.RPARENT)) {
-            components.get(4).visit();  // Block
+
+        for (Node node : components) {
+            setFuncType(node, symbolType);
+            node.visit();
+            if (node instanceof FuncFParams funcFParams) {
+                func.setParamsType(funcFParams.getParamsType());
+            }
         }
-        // 有参数
-        else {
-            components.get(3).visit();  // FuncFParams
-            components.get(5).visit();  // Block
+    }
+
+    public void setFuncType(Node node, SymbolType funcType) {
+        if (!(node instanceof Block block)) {
+            return;
         }
+        block.setFuncType(funcType);
     }
 }

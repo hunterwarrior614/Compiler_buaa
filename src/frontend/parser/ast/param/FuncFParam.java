@@ -1,5 +1,6 @@
 package frontend.parser.ast.param;
 
+import frontend.parser.ast.Ident;
 import frontend.parser.ast.def.BType;
 import frontend.parser.ast.Node;
 import frontend.parser.ast.SyntaxType;
@@ -12,6 +13,8 @@ import java.util.ArrayList;
 
 public class FuncFParam extends Node {
     // FuncFParam → BType Ident ['[' ']']
+    private SymbolType paramType;
+
     public FuncFParam() {
         super(SyntaxType.FUNC_FORMAL_PARAM);
     }
@@ -19,7 +22,7 @@ public class FuncFParam extends Node {
     @Override
     public void parse() {
         addAndParseNode(new BType());   // BType
-        addAndParseNode(new TokenNode());   // Ident
+        addAndParseNode(new Ident());   // Ident
         // ['[' ']']
         if (isLeftBracketToken()) {
             addAndParseNode(new TokenNode());   // '['
@@ -29,15 +32,31 @@ public class FuncFParam extends Node {
 
     @Override
     public void visit() {
+        String symbolName = "";
+        int identLineNumber = 0;
+
         ArrayList<Node> components = getComponents();
-        String symbolName = ((TokenNode) components.get(1)).getTokenValue();
+        for (Node node : components) {
+            if (node instanceof Ident ident) {
+                symbolName = ident.getTokenValue();
+                identLineNumber = ident.getLineNumber();
+            }
+            node.visit();
+        }
+
         // IntArray
         if (components.size() > 2) {
-            SymbolManager.addSymbol(SymbolType.INT_ARRAY, symbolName);
+            SymbolManager.addSymbol(new Symbol(SymbolType.INT_ARRAY, symbolName, identLineNumber));
+            paramType = SymbolType.INT_ARRAY;
         }
         // Int
         else {
-            SymbolManager.addSymbol(SymbolType.INT, symbolName);
+            SymbolManager.addSymbol(new Symbol(SymbolType.INT, symbolName, identLineNumber));
+            paramType = SymbolType.INT;
         }
+    }
+
+    public SymbolType getParamType() {
+        return paramType;
     }
 }

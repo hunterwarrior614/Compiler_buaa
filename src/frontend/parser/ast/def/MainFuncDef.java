@@ -6,6 +6,8 @@ import frontend.parser.ast.SyntaxType;
 import frontend.parser.ast.TokenNode;
 import midend.symbol.SymbolManager;
 
+import java.util.ArrayList;
+
 public class MainFuncDef extends Node {
     //  MainFuncDef → 'int' 'main' '(' ')' Block
     public MainFuncDef() {
@@ -23,7 +25,12 @@ public class MainFuncDef extends Node {
 
     @Override
     public void visit() {
-        SymbolManager.createSonSymbolTable();
-        getComponents().get(4).visit();
+        ArrayList<Node> components = getComponents();
+        for (Node node : components) {
+            if (node instanceof Block block) {
+                SymbolManager.createSonSymbolTable();
+                block.visit();
+            }
+        }
     }
 }

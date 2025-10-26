@@ -68,6 +68,10 @@ public abstract class Node {
     protected void checkSemicolon() {
         if (!isSemicolonToken()) {
             ErrorRecorder.addError(new Error(Error.Type.i, peekToken(-1).getLineNumber()));
+            // 加上分号，便于后续语义分析
+            TokenNode semicolon = new TokenNode();
+            semicolon.setToken(new Token(TokenType.SEMICN, ";", peekToken(-1).getLineNumber()));
+            components.add(semicolon);
         } else {
             addAndParseNode(new TokenNode());
         }
@@ -76,6 +80,10 @@ public abstract class Node {
     protected void checkRightParen() {
         if (!isRightParenToken()) {
             ErrorRecorder.addError(new Error(Error.Type.j, peekToken(-1).getLineNumber()));
+            // 加上右圆括号，便于后续语义分析
+            TokenNode rightParen = new TokenNode();
+            rightParen.setToken(new Token(TokenType.RPARENT, ")", peekToken(-1).getLineNumber()));
+            components.add(rightParen);
         } else {
             addAndParseNode(new TokenNode());
         }
@@ -84,6 +92,10 @@ public abstract class Node {
     protected void checkRightBracket() {
         if (!isRightBracketToken()) {
             ErrorRecorder.addError(new Error(Error.Type.k, peekToken(-1).getLineNumber()));
+            // 加上右方括号，便于后续语义分析
+            TokenNode rightBracket = new TokenNode();
+            rightBracket.setToken(new Token(TokenType.RBRACK, "]", peekToken(-1).getLineNumber()));
+            components.add(rightBracket);
         } else {
             addAndParseNode(new TokenNode());
         }

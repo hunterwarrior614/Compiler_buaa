@@ -16,12 +16,20 @@ public class TokenNode extends Node {
         next();
     }
 
+    public void setToken(Token token) {
+        this.token = token;
+    }
+
     public TokenType getTokenType() {
         return token.getType();
     }
 
     public String getTokenValue() {
         return token.getContent();
+    }
+
+    public int getLineNumber() {
+        return token.getLineNumber();
     }
 
     @Override
