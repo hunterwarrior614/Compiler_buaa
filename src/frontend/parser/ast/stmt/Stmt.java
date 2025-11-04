@@ -24,14 +24,10 @@ public class Stmt extends Node {
              | 'return' [Exp] ';'
              | 'printf''('StringConst {','Exp}')'';'
     */
-    private SymbolType funcType = null;
-    private boolean hasReturnValue = false;
 
     private int printfFStrCount = 0;
     private int printfExpCount = 0;
 
-    private boolean inLoopBlock = false;
-    private boolean forStmt = false;
 
     public Stmt() {
         super(SyntaxType.STATEMENT);
@@ -88,7 +84,6 @@ public class Stmt extends Node {
             // [Exp]
             if (!isSemicolonToken() && isExp()) {
                 addAndParseNode(new Exp());
-                hasReturnValue = true;
             }
             checkSemicolon();   // ';'
         }
@@ -114,11 +109,12 @@ public class Stmt extends Node {
         // LVal '=' Exp ';' 或者 Exp ';'
         else if (getCurrentToken().getType().equals(TokenType.IDENFR)) {
             int originPos = getCurTokenPos();
+            int errorCount = ErrorRecorder.getErrorsCount();
             LVal lval = new LVal();
             lval.parse();
             // LVal '=' Exp ';'
             if (getCurrentToken().getType().equals(TokenType.ASSIGN)) {
-                setTokenStreamPos(originPos);   // 回溯
+                reset(originPos, errorCount);   // 回溯
                 addAndParseNode(new LVal());    // LVal
                 addAndParseNode(new TokenNode());   // '='
                 addAndParseNode(new Exp()); // Exp
@@ -126,7 +122,7 @@ public class Stmt extends Node {
             }
             // Exp ';'
             else {
-                setTokenStreamPos(originPos);   // 回溯
+                reset(originPos, errorCount);   // 回溯
                 addAndParseNode(new Exp()); // Exp
                 checkSemicolon();   // ';'
             }
@@ -154,36 +150,52 @@ public class Stmt extends Node {
         if (components.get(0) instanceof Block) {
             SymbolManager.createSonSymbolTable();
         }
+
+        boolean forStmt = false;
+        boolean returnStmt = false;
+        boolean hasExpValue = false;
+        int returnLineNumber = 0;
         for (Node node : components) {
-            if (node instanceof ForStmt) {
+            if (node instanceof TokenNode tokenNode && tokenNode.isTypeOfToken(TokenType.FORTK)) {
                 forStmt = true;
             }
-            setLoopBlock(node);
+            if (forStmt && node instanceof Stmt) {
+                SymbolManager.goIntoLoopBlock();   // 进入for语句块
+            }
+            if (node instanceof TokenNode tokenNode && tokenNode.isTypeOfToken(TokenType.RETURNTK)) {
+                returnStmt = true;
+                returnLineNumber = tokenNode.getLineNumber();
+            }
+            if (node instanceof Exp) {
+                hasExpValue = true;
+            }
+            if (node instanceof Block) {
+                SymbolManager.goIntoBlock();
+            }
+
             node.visit();
-            checkReturn(node);
+            checkReturn(node, returnStmt, hasExpValue, returnLineNumber);
             checkModified(node);
             checkPrintf(node);
             checkBreakOrContinue(node);
         }
+
+        if (forStmt) {
+            SymbolManager.goOutOfLoopBlock();   // 最后要出for语句块
+        }
     }
 
-    public void setFuncType(SymbolType funcType) {
-        this.funcType = funcType;
-    }
 
-    private void checkReturn(Node node) {
-        if (!(node instanceof TokenNode tokenNode && tokenNode.isTypeOfToken(TokenType.RETURNTK)) || funcType == null) {
+    private void checkReturn(Node node, boolean returnStmt, boolean hasReturnValue, int returnLineNumber) {
+        if (!returnStmt || !(node instanceof TokenNode tokenNode && tokenNode.isTypeOfToken(TokenType.SEMICN))) {
             return;
         }
-        int returnLineNumber = tokenNode.getLineNumber();
+
+        SymbolManager.setHasReturn();  // 遇见return
         // 无返回值的函数存在不匹配的return语句
-        if (funcType == SymbolType.VOID_FUNC && hasReturnValue) {
+        if (SymbolManager.getCurrentFuncType() == SymbolType.VOID_FUNC && hasReturnValue) {
             ErrorRecorder.addError(new Error(Error.Type.f, returnLineNumber));
         }
-    }
-
-    public boolean hasReturnValue() {
-        return hasReturnValue;
     }
 
     private void checkModified(Node node) {
@@ -217,26 +229,13 @@ public class Stmt extends Node {
         }
     }
 
-    public void setLoopBlock() {
-        inLoopBlock = true;
-    }
-
-    private void setLoopBlock(Node node) {
-        if (!(node instanceof Stmt stmt)) {
-            return;
-        }
-        if (forStmt || inLoopBlock) {
-            stmt.setLoopBlock();
-        }
-    }
-
     private void checkBreakOrContinue(Node node) {
         if (!(node instanceof TokenNode tokenNode && (tokenNode.isTypeOfToken(TokenType.BREAKTK) || tokenNode.isTypeOfToken(TokenType.CONTINUETK)))) {
             return;
         }
         int errorLineNumber = tokenNode.getLineNumber();
         // 在非循环块中使用break和continue语句
-        if (!inLoopBlock) {
+        if (!SymbolManager.inLoopBlock()) {
             ErrorRecorder.addError(new Error(Error.Type.m, errorLineNumber));
         }
     }

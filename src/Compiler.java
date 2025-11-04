@@ -1,5 +1,4 @@
 import frontend.FrontEnd;
-import error.ErrorRecorder;
 import midend.MidEnd;
 import utils.IOHandler;
 
@@ -15,12 +14,7 @@ public class Compiler {
 
         MidEnd.GenerateSymbolTable();   // 语义分析
 
-        if (ErrorRecorder.hasErrors()) {
-            IOHandler.printError();
-        } else {
-            // IOHandler.printTokenList(); // 输出词法分析
-            // IOHandler.printAstTree();   // 输出语法分析
-            IOHandler.printSymbolTable();   // 输出语法分析
-        }
+        int stage = 3;  // 词法(1)，语法(2)，语义(3)
+        IOHandler.print(stage);
     }
 }

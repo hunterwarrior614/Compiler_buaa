@@ -19,10 +19,12 @@ public class FuncFParams extends Node {
 
     @Override
     public void parse() {
-        addAndParseNode(new FuncFParam());  // FuncFParam
+        FuncFParam funcFParam = new FuncFParam();
+        addAndParseNode(funcFParam);  // FuncFParam
+        funcFParams.add(funcFParam);
         while (isCommaToken()) {
             addAndParseNode(new TokenNode());   // ','
-            FuncFParam funcFParam = new FuncFParam();
+            funcFParam = new FuncFParam();
             addAndParseNode(funcFParam);  // FuncFParam
             funcFParams.add(funcFParam);
         }

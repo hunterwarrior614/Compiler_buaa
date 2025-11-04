@@ -16,6 +16,7 @@ public class Symbol {
         this.type = type;
         this.name = name;
         this.lineNumber = lineNumber;
+        paramTypeList = new ArrayList<>();
     }
 
     public void setSymbolTableId(int id) {

@@ -34,6 +34,24 @@ public class IOHandler {
         return input;
     }
 
+    public static void print(int stage) throws IOException {
+        if (ErrorRecorder.hasErrors()) {
+            IOHandler.printError(stage);
+        } else {
+            switch (stage) {
+                case 1:
+                    IOHandler.printTokenList(); // 输出词法分析
+                    break;
+                case 2:
+                    IOHandler.printAstTree();   // 输出语法分析
+                    break;
+                case 3:
+                    IOHandler.printSymbolTable();   // 输出语义分析
+                    break;
+            }
+        }
+    }
+
     public static void printTokenList() throws IOException {
         for (Token token : FrontEnd.getTokenList()) {
             lexerOutput.write((token + "\n").getBytes());
@@ -53,13 +71,38 @@ public class IOHandler {
         System.out.println("symbol.txt 输出完毕");
     }
 
-    public static void printError() throws IOException {
-        ArrayList<Error> errors = ErrorRecorder.getErrors();
+    public static void printError(int stage) throws IOException {
+        ArrayList<Error> errors = filterErrors(ErrorRecorder.getErrors(), stage);
         for (Error error : errors) {
             errorOutput.write((error + "\n").getBytes());
         }
         if (!errors.isEmpty()) {
             System.out.println("error.txt 输出完毕");
         }
+    }
+
+    private static ArrayList<Error> filterErrors(ArrayList<Error> errors, int stage) {
+        ArrayList<Error> filteredErrors = new ArrayList<>();
+        for (Error error : errors) {
+            switch (stage) {
+                // 仅输出a类错误
+                case 1:
+                    if (error.getType() == Error.Type.a) {
+                        filteredErrors.add(error);
+                    }
+                    break;
+                // 仅输出a, i, j, k类错误
+                case 2:
+                    if (error.getType() == Error.Type.a || error.getType() == Error.Type.i ||
+                            error.getType() == Error.Type.j || error.getType() == Error.Type.k) {
+                        filteredErrors.add(error);
+                    }
+                    break;
+                // 全部输出
+                case 3:
+                    filteredErrors.add(error);
+            }
+        }
+        return filteredErrors;
     }
 }

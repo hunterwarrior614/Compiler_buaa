@@ -58,9 +58,11 @@ public abstract class Node {
         return tokenStream.getCurPos();
     }
 
-    protected void setTokenStreamPos(int tokenStreamPos) {
+    protected void reset(int tokenStreamPos, int errorCount) {
         tokenStream.setReadPosition(tokenStreamPos);
         currentToken = tokenStream.peek(0);
+
+        ErrorRecorder.resetErrors(errorCount);
     }
 
     /* 语法错误检查 */

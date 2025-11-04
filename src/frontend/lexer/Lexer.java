@@ -58,10 +58,7 @@ public class Lexer {
                 }, content, lineNumber));
             }
             // INTCON
-            else if (currentChar == '0') {
-                tokens.add(new Token(TokenType.INTCON, "0", lineNumber));
-                next();
-            } else if (Character.isDigit(currentChar)) {
+            else if (Character.isDigit(currentChar)) {
                 do {
                     sb.append(currentChar);
                     next();

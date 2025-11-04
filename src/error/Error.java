@@ -19,6 +19,10 @@ public class Error {
         return lineNumber;
     }
 
+    public Type getType() {
+        return type;
+    }
+
     @Override
     public String toString() {
         return lineNumber + " " + type;

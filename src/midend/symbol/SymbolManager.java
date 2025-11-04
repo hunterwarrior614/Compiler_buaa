@@ -5,6 +5,11 @@ public class SymbolManager {
     private static SymbolTable currentSymbolTable;
     private static int symbolTableIndex;
 
+    private static int forDepth = 0;
+    private static SymbolType currentFuncType = null;
+    private static int depthInFunc = 0;
+    private static boolean hasReturn = false;
+
     public static void initialize() {
         symbolTableIndex = 1;
         rootSymbolTable = new SymbolTable(symbolTableIndex, null);
@@ -54,4 +59,59 @@ public class SymbolManager {
         rootSymbolTable.deleteSymbol("printf");
         rootSymbolTable.deleteSymbol("getint");
     }
+
+    /* for循环块处理 */
+
+    public static void goIntoLoopBlock() {
+        forDepth++;
+    }
+
+    public static void goOutOfLoopBlock() {
+        forDepth--;
+    }
+
+    public static boolean inLoopBlock() {
+        return forDepth > 0;
+    }
+
+    /* 函数体处理 */
+    public static void goIntoFuncBlock(SymbolType funcType) {
+        currentFuncType = funcType;
+    }
+
+    public static void goOutOfFuncBlock() {
+        currentFuncType = null;
+        hasReturn = false;
+        depthInFunc = 0;
+    }
+
+    public static void setHasReturn() {
+        hasReturn = true;
+    }
+
+    public static void goIntoBlock() {
+        if (currentFuncType != null) {
+            depthInFunc++;
+        }
+    }
+
+    public static void goOutOfBlock() {
+        if (currentFuncType != null) {
+            depthInFunc--;
+            hasReturn = false;
+        }
+    }
+
+    public static boolean inInnerBlock() {
+        return depthInFunc > 0;
+    }
+
+    public static SymbolType getCurrentFuncType() {
+        return currentFuncType;
+    }
+
+    public static boolean hasReturn() {
+        return hasReturn;
+    }
+
 }

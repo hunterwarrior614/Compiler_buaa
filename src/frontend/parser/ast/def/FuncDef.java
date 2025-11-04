@@ -1,5 +1,7 @@
 package frontend.parser.ast.def;
 
+import error.Error;
+import error.ErrorRecorder;
 import frontend.lexer.TokenType;
 import frontend.parser.ast.Ident;
 import frontend.parser.ast.stmt.Block;
@@ -42,18 +44,15 @@ public class FuncDef extends Node {
         SymbolManager.createSonSymbolTable();   // 即将进入内层作用域，创建子符号表
 
         for (Node node : components) {
-            setFuncType(node, symbolType);
+            if (node instanceof Block) {
+                SymbolManager.goIntoFuncBlock(symbolType);  // 进函数体
+            }
             node.visit();
             if (node instanceof FuncFParams funcFParams) {
                 func.setParamsType(funcFParams.getParamsType());
             }
         }
-    }
 
-    public void setFuncType(Node node, SymbolType funcType) {
-        if (!(node instanceof Block block)) {
-            return;
-        }
-        block.setFuncType(funcType);
+        SymbolManager.goOutOfFuncBlock();   // 最后要出函数体
     }
 }

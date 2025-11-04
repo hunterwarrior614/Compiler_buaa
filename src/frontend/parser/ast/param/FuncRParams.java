@@ -18,10 +18,12 @@ public class FuncRParams extends Node {
 
     @Override
     public void parse() {
-        addAndParseNode(new Exp());
+        Exp exp = new Exp();
+        addAndParseNode(exp);
+        paramList.add(exp);
         while (isCommaToken()) {
             addAndParseNode(new TokenNode());   // ','
-            Exp exp = new Exp();
+            exp = new Exp();
             addAndParseNode(exp);
             paramList.add(exp);
         }

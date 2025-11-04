@@ -45,21 +45,29 @@ public class UnaryExp extends Node {
     @Override
     public void visit() {
         ArrayList<Node> components = getComponents();
-        Symbol func = null;
-        int lineNumber = 0;
-        for (Node node : components) {
-            node.visit();
-            if (node instanceof Ident ident) {
-                String identName = ident.getTokenValue();
-                lineNumber = ident.getLineNumber();
-                Symbol symbol = SymbolManager.getSymbol(identName);
-                if (symbol == null) {
-                    ErrorRecorder.addError(new Error(Error.Type.c, lineNumber));
-                } else {
-                    func = symbol;
+        if (components.get(0) instanceof Ident) {
+            Symbol func = null;
+            FuncRParams funcRParams = null;
+            int lineNumber = 0;
+            for (Node node : components) {
+                node.visit();
+                if (node instanceof Ident ident) {
+                    String identName = ident.getTokenValue();
+                    lineNumber = ident.getLineNumber();
+                    Symbol symbol = SymbolManager.getSymbol(identName);
+                    if (symbol == null) {
+                        ErrorRecorder.addError(new Error(Error.Type.c, lineNumber));
+                    } else {
+                        func = symbol;
+                    }
                 }
+                if (node instanceof FuncRParams) {
+                    funcRParams = (FuncRParams) node;
+                }
+                checkFuncParams(node, func, funcRParams, lineNumber);
             }
-            checkFuncParams(func, node, lineNumber);
+        } else {
+            super.visit();
         }
     }
 
@@ -90,13 +98,13 @@ public class UnaryExp extends Node {
     }
 
 
-    private void checkFuncParams(Symbol func, Node node, int lineNumber) {
-        if (!(node instanceof FuncRParams funcRParams)) {
+    private void checkFuncParams(Node node, Symbol func, FuncRParams funcRParams, int lineNumber) {
+        if (func == null || !(node instanceof TokenNode tokenNode && tokenNode.isTypeOfToken(TokenType.RPARENT))) {
             return;
         }
 
         // 函数参数个数是否匹配
-        ArrayList<Exp> realParams = funcRParams.getParamList();
+        ArrayList<Exp> realParams = funcRParams == null ? new ArrayList<>() : funcRParams.getParamList();
         if (!func.paramsSizeEqual(realParams)) {
             ErrorRecorder.addError(new Error(Error.Type.d, lineNumber));
             return;
