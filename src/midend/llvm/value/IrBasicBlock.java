@@ -1,6 +1,7 @@
 package midend.llvm.value;
 
 import midend.llvm.instr.IrInstr;
+import midend.llvm.instr.ReturnInstr;
 import midend.llvm.type.IrBaseType;
 import midend.llvm.type.IrValueType;
 
@@ -19,6 +20,21 @@ public class IrBasicBlock extends IrValue {
 
     public void addInstr(IrInstr instr) {
         instrs.add(instr);
+    }
+
+    public boolean lastInstrIsReturn() {
+        if (instrs.isEmpty()) {
+            return false;
+        }
+        return instrs.get(instrs.size() - 1) instanceof ReturnInstr;
+    }
+
+    public boolean isEmpty() {
+        return instrs.isEmpty();
+    }
+
+    public String getFuncName() {
+        return irFunc.getName();
     }
 
     @Override

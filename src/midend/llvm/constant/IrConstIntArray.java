@@ -12,9 +12,9 @@ public class IrConstIntArray extends IrConst {
 
     public IrConstIntArray(ArrayList<IrConstInt> valueList, int arrayLength) {
         super(IrValueType.CONST_DATA,
-                // 返回值为数组指针
-                new IrBaseType(IrBaseType.TypeValue.POINTER, new IrBaseType(IrBaseType.TypeValue.INT_ARRAY, arrayLength)),
-                "constIntArray");   // TODO:name?
+                // 返回值为数组（注意不是数组指针！GlobalVariable处才是数组指针）
+                new IrBaseType(IrBaseType.TypeValue.INT_ARRAY, arrayLength),
+                "constIntArray");
         this.valueList = valueList;
         this.arrayLength = arrayLength;
     }
@@ -25,7 +25,7 @@ public class IrConstIntArray extends IrConst {
         // [3 x i32] [i32 1, i32 2, i32 3]
         // [20 x i32] zeroinitializer
         StringBuilder sb = new StringBuilder();
-        sb.append(irBaseType.getPointValueType()).append(" ");
+        sb.append(irBaseType).append(" ");
 
         if (valueList.isEmpty()) {
             sb.append("zeroinitializer");

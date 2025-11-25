@@ -31,7 +31,20 @@ public class VisitorLVal {
         else {
             IrValue arrayPointer = valueSymbol.getIrValue();    // 获取数组基地址
             IrValue index = VisitorExp.visitExp(lval.getIndexExp());    // 获取索引
-            return new GetElemInstr(arrayPointer, index);
+            /*  arrayPointer 是数组指针，直接从数组加载
+                %1 = getelementptr [5 x i32], [5 x i32]* @a, i32 0, i32 3
+             */
+            if (arrayPointer.getIrBaseType().getPointValueTypeValue().equals(IrBaseType.TypeValue.INT_ARRAY)) {
+                return new GetElemInstr(arrayPointer, index);   // 获取到目标元素地址
+            }
+            /*  arrayPointer 是二级指针，先获取到首元素地址，再加载
+                %2 = getelementptr [5 x i32], [5 x i32]* @a, i32 0, i32 0
+                %3 = getelementptr i32, i32* %2, i32 3
+             */
+            else {
+                IrValue basePointer = new LoadInstr(arrayPointer);  // 获取到首元素地址
+                return new GetElemInstr(basePointer, index); // 获取到目标元素地址
+            }
         }
     }
 
@@ -53,17 +66,12 @@ public class VisitorLVal {
                 return new GetElemInstr(arrayPointer, new IrConstInt(0));
             } else {
                 IrValue index = VisitorExp.visitExp(lval.getIndexExp());    // 获取索引
-                /*  arrayPointer 是数组指针，直接从数组加载
-                    %1 = getelementptr [5 x i32], [5 x i32]* @a, i32 0, i32 3
-                 */
+                // arrayPointer 是数组指针，直接从数组加载
                 if (arrayPointer.getIrBaseType().getPointValueTypeValue().equals(IrBaseType.TypeValue.INT_ARRAY)) {
                     IrValue elemPointer = new GetElemInstr(arrayPointer, index);    // 获取到目标元素地址
                     return new LoadInstr(elemPointer);
                 }
-                /*  arrayPointer 是二级指针，先获取到首元素地址，再加载
-                    %2 = getelementptr [5 x i32], [5 x i32]* @a, i32 0, i32 0
-                    %3 = getelementptr i32, i32* %2, i32 3
-                 */
+                // arrayPointer 是二级指针，先获取到首元素地址，再加载
                 else {
                     IrValue basePointer = new LoadInstr(arrayPointer);  // 获取到首元素地址
                     IrValue element = new GetElemInstr(basePointer, index); // 获取到目标元素地址

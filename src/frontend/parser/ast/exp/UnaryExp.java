@@ -181,8 +181,8 @@ public class UnaryExp extends ExpNode {
     }
 
     // UnaryOp UnaryExp
-    public String getUnaryOp() {
-        return ((TokenNode) components.get(0)).getTokenValue();
+    public TokenType getUnaryOp() {
+        return ((UnaryOp) components.get(0)).getOperator();
     }
 
     public UnaryExp getUnaryExp() {

@@ -21,4 +21,5 @@ public enum IrValueType {
     BRANCH_INSTR,
     JUMP_INSTR,
     GETELEM_INSTR,
+    EXTEND_INSTR,
 }

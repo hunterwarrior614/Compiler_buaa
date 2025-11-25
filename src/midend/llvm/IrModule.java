@@ -33,20 +33,6 @@ public class IrModule {
         functions.add(irFunc);
     }
 
-    @Override
-    public String toString() {
-        StringBuilder sb = new StringBuilder();
-        sb.append(String.join("\n", declares)).append(declares.isEmpty() ? "" : "\n\n");
-        sb.append(globalVariables.stream().map(IrGlobalVariable::toString).collect(Collectors.joining("\n"))).append(globalVariables.isEmpty() ? "" : "\n\n");
-        sb.append(constStrMap.entrySet().stream()
-                        .sorted(Map.Entry.comparingByKey())  // 按key排序
-                        .map(entry -> entry.getValue().toString())
-                        .collect(Collectors.joining("\n")))
-                .append(constStrMap.isEmpty() ? "" : "\n\n");
-        sb.append(functions.stream().map(IrFunc::toString).collect(Collectors.joining("\n\n")));
-        return sb.toString();
-    }
-
     public void addGlobalVariable(IrGlobalVariable irGlobalVariable) {
         globalVariables.add(irGlobalVariable);
     }
@@ -61,5 +47,25 @@ public class IrModule {
 
     public void addConstStr(IrConstStr irConstStr) {
         constStrMap.put(irConstStr.getName(), irConstStr);
+    }
+
+    public void checkEmptyBasicBlocks() {
+        for (IrFunc func : functions) {
+            func.checkEmptyBasicBlocks();
+        }
+    }
+
+    @Override
+    public String toString() {
+        StringBuilder sb = new StringBuilder();
+        sb.append(String.join("\n", declares)).append(declares.isEmpty() ? "" : "\n\n");
+        sb.append(globalVariables.stream().map(IrGlobalVariable::toString).collect(Collectors.joining("\n"))).append(globalVariables.isEmpty() ? "" : "\n\n");
+        sb.append(constStrMap.entrySet().stream()
+                        .sorted(Map.Entry.comparingByKey())  // 按key排序
+                        .map(entry -> entry.getValue().toString())
+                        .collect(Collectors.joining("\n")))
+                .append(constStrMap.isEmpty() ? "" : "\n\n");
+        sb.append(functions.stream().map(IrFunc::toString).collect(Collectors.joining("\n\n")));
+        return sb.toString();
     }
 }

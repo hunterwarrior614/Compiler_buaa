@@ -186,6 +186,7 @@ public class VisitorStmt {
         if (cond != null) {
             VisitorExp.visitCond(cond, bodyBlock, followBlock);
         }
+        new JumpInstr(bodyBlock);
 
         // 解析for循环体
         IrBuilder.setCurrentIrBasicBlock(bodyBlock);

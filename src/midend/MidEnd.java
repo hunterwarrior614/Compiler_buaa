@@ -28,6 +28,7 @@ public class MidEnd {
         IrBuilder.setIrModule(irModule);
         VisitorCompUnit visitor = new VisitorCompUnit(rootNode);
         visitor.visitCompUnit();
+        irModule.checkEmptyBasicBlocks();   // 检查是否有空基本块（LLVM IR不允许有）
     }
 
     public static IrModule getIrModule() {

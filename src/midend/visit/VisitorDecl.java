@@ -16,6 +16,7 @@ import midend.llvm.instr.StoreInstr;
 import midend.llvm.value.IrGlobalVariable;
 import midend.llvm.value.IrValue;
 import midend.symbol.SymbolManager;
+import midend.symbol.SymbolType;
 import midend.symbol.ValueSymbol;
 
 import java.util.ArrayList;
@@ -53,7 +54,7 @@ public class VisitorDecl {
         // 全局作用域
         if (SymbolManager.isGlobal()) {
             // TODO:是否需要对POINTER做限制(CONST)
-            IrGlobalVariable irGlobalVariable = IrBuilder.createIrGlobalVariable("@" + valueSymbol.getName(), getIrConst(valueSymbol));
+            IrGlobalVariable irGlobalVariable = IrBuilder.createIrGlobalVariable(getIrGlobalVarName(valueSymbol), getIrConst(valueSymbol));
             valueSymbol.setIrValue(irGlobalVariable);
         }
         // 局部作用域
@@ -68,10 +69,12 @@ public class VisitorDecl {
             throw new RuntimeException("[ERROR] Symbol not found in LLVM IR");
         }
 
-        // 全局作用域
-        if (SymbolManager.isGlobal()) {
+        // 全局作用域 或 静态变量
+        if (SymbolManager.isGlobal()
+                || valueSymbol.getType().equals(SymbolType.STATIC_INT_ARRAY)
+                || valueSymbol.getType().equals(SymbolType.STATIC_INT)) {
             varDef.setValueToSymbol();  // 将变量的初值赋给valueSymbol
-            IrGlobalVariable irGlobalVariable = IrBuilder.createIrGlobalVariable("@" + valueSymbol.getName(), getIrConst(valueSymbol));
+            IrGlobalVariable irGlobalVariable = IrBuilder.createIrGlobalVariable(getIrGlobalVarName(valueSymbol), getIrConst(valueSymbol));
             valueSymbol.setIrValue(irGlobalVariable);
         }
         // 局部作用域
@@ -121,12 +124,14 @@ public class VisitorDecl {
         }
         // 数组
         else {
-            ArrayList<Exp> initList = varDef.getInitVal().getExpList();
-            for (int i = 0; i < initList.size(); i++) {
-                IrValue initValue = VisitorExp.visitExp(initList.get(i));
-                GetElemInstr getElemInstr = new GetElemInstr(allocateInstr, new IrConstInt(i)); // 获取第i个数组元素
+            if (varDef.hasInitVal()) {
+                ArrayList<Exp> initList = varDef.getInitVal().getExpList();
+                for (int i = 0; i < initList.size(); i++) {
+                    IrValue initValue = VisitorExp.visitExp(initList.get(i));
+                    GetElemInstr getElemInstr = new GetElemInstr(allocateInstr, new IrConstInt(i)); // 获取第i个数组元素
 
-                new StoreInstr(initValue, getElemInstr);    // 将初值赋给元素
+                    new StoreInstr(initValue, getElemInstr);    // 将初值赋给元素
+                }
             }
         }
     }
@@ -137,7 +142,7 @@ public class VisitorDecl {
         // 非数组类型
         if (valueSymbol.getDimension() == 0) {
             if (valueList.isEmpty()) {
-                valueList.add(0);   // 这里严格来说是全局设为0，局部值来源于内存
+                valueList.add(0);
             }
             return new IrConstInt(valueList.get(0));
         }
@@ -156,6 +161,15 @@ public class VisitorDecl {
             }
 
             return new IrConstIntArray(initialList, arrayLength);
+        }
+    }
+
+    private static String getIrGlobalVarName(ValueSymbol valueSymbol) {
+        SymbolType symbolType = valueSymbol.getType();
+        if (symbolType.equals(SymbolType.STATIC_INT) || symbolType.equals(SymbolType.STATIC_INT_ARRAY)) {
+            return IrBuilder.getCurrentIrBasicBlock().getFuncName() + "." + valueSymbol.getName();
+        } else {
+            return "@" + valueSymbol.getName();
         }
     }
 }

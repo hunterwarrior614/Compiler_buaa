@@ -6,7 +6,7 @@ import midend.llvm.value.IrValue;
 
 public class PrintIntInstr extends IOInstr {
     public PrintIntInstr(IrValue printValue) {
-        super(IrValueType.OUTPUT_INSTR, new IrBaseType(IrBaseType.TypeValue.VOID), "");    // TODO:name?
+        super(IrValueType.OUTPUT_INSTR, new IrBaseType(IrBaseType.TypeValue.VOID), "");
         usees.add(printValue);
     }
 

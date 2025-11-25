@@ -1,5 +1,6 @@
 package midend.visit;
 
+import frontend.lexer.TokenType;
 import frontend.parser.ast.Node;
 import frontend.parser.ast.TokenNode;
 import frontend.parser.ast.exp.AddExp;
@@ -15,10 +16,9 @@ import frontend.parser.ast.stmt.Cond;
 import frontend.parser.ast.val.LVal;
 import midend.llvm.IrBuilder;
 import midend.llvm.constant.IrConstInt;
-import midend.llvm.instr.AluInstr;
-import midend.llvm.instr.BranchInstr;
-import midend.llvm.instr.CallInstr;
-import midend.llvm.instr.CompareInstr;
+import midend.llvm.instr.*;
+import midend.llvm.instr.io.GetIntInstr;
+import midend.llvm.type.IrBaseType;
 import midend.llvm.value.IrBasicBlock;
 import midend.llvm.value.IrFunc;
 import midend.llvm.value.IrValue;
@@ -90,14 +90,17 @@ public class VisitorExp {
         else if (componentCount == 2) {
             IrValue lValue = new IrConstInt(0);
             IrValue rValue = visitUnaryExp(unaryExp.getUnaryExp());
-            String op = unaryExp.getUnaryOp();
+            TokenType op = unaryExp.getUnaryOp();
 
             switch (op) {
-                case "+":
+                case PLUS:
                     return rValue;
-                case "-":
-                    return new AluInstr(op, lValue, rValue);
-                // TODO:逻辑非
+                case MINU:
+                    return new AluInstr("-", lValue, rValue);
+                case NOT:
+                    IrValue negateValue = new CompareInstr("==", lValue, rValue);
+                    // 注意要将否定之后的值拓展到32位
+                    return new ExtendInstr(negateValue, new IrBaseType(IrBaseType.TypeValue.INT32));
                 default:
                     throw new RuntimeException("[ERROR] Invalid Op");
             }
@@ -106,6 +109,11 @@ public class VisitorExp {
         else {
             // 找到函数调用对应的 irFunc
             String funcName = unaryExp.getIdentName();
+            // getint() 特殊处理
+            if (funcName.equals("getint")) {
+                return new GetIntInstr();
+            }
+
             FuncSymbol funcSymbol = (FuncSymbol) SymbolManager.getSymbol(funcName);
             if (funcSymbol == null) {
                 throw new RuntimeException("[ERROR] Can't find funcSymbol");

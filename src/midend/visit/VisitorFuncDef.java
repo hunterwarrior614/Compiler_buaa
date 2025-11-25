@@ -47,6 +47,9 @@ public class VisitorFuncDef {
         Block block = funcDef.getBlock();
         VisitorBlock.visitBlock(block);
 
+        // 检查最后的return（void函数可能没有显式return）
+        irFunc.checkReturn();
+
         SymbolManager.goBackToParentSymbolTable();
     }
 

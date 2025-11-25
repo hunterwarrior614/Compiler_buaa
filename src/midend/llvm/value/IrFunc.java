@@ -1,5 +1,8 @@
 package midend.llvm.value;
 
+import midend.llvm.IrBuilder;
+import midend.llvm.instr.JumpInstr;
+import midend.llvm.instr.ReturnInstr;
 import midend.llvm.type.IrValueType;
 import midend.llvm.type.IrBaseType;
 
@@ -22,7 +25,7 @@ public class IrFunc extends IrValue {
             throw new RuntimeException("[ERROR] IrBaseType is null");
         }
 
-        if (irBaseType.equals(new IrBaseType(IrBaseType.TypeValue.VOID))) {
+        if (irBaseType.getTypeValue().equals(IrBaseType.TypeValue.VOID)) {
             return "void";
         } else {
             return "i32";
@@ -35,6 +38,23 @@ public class IrFunc extends IrValue {
 
     public void addParameter(IrParameter irParameter) {
         parameters.add(irParameter);
+    }
+
+    public void checkReturn() {
+        IrBasicBlock currentBlock = IrBuilder.getCurrentIrBasicBlock();
+        if (!currentBlock.lastInstrIsReturn()) {
+            new ReturnInstr(null);
+        }
+    }
+
+    public void checkEmptyBasicBlocks() {
+        for (int i = 0; i < basicBlocks.size() - 1; i++) {
+            IrBasicBlock bb = basicBlocks.get(i);
+            // 若出现空基本块，则插入一条跳转到下一个基本块的指令
+            if (bb.isEmpty()) {
+                bb.addInstr(new JumpInstr(basicBlocks.get(i + 1)));
+            }
+        }
     }
 
     @Override

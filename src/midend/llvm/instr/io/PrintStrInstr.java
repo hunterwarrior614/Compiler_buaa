@@ -9,7 +9,7 @@ public class PrintStrInstr extends IOInstr {
     private final IrConstStr content;
 
     public PrintStrInstr(IrConstStr content) {
-        super(IrValueType.OUTPUT_INSTR, new IrBaseType(IrBaseType.TypeValue.VOID), "");    // TODO:name?
+        super(IrValueType.OUTPUT_INSTR, new IrBaseType(IrBaseType.TypeValue.VOID), "");
         this.content = content;
     }
 

@@ -54,13 +54,19 @@ public class IrBuilder {
         currentIrBasicBlock = irBasicBlock;
     }
 
+    public static IrBasicBlock getCurrentIrBasicBlock() {
+        return currentIrBasicBlock;
+    }
+
     public static void addInstr(IrInstr irInstr) {
         currentIrBasicBlock.addInstr(irInstr);
         irInstr.setIrBasicBlock(currentIrBasicBlock);
     }
 
     public static IrGlobalVariable createIrGlobalVariable(String name, IrConst initValue) {
-        IrGlobalVariable irGlobalVariable = new IrGlobalVariable(name, initValue.getIrBaseType(), initValue);
+        IrGlobalVariable irGlobalVariable = new IrGlobalVariable(name,
+                new IrBaseType(IrBaseType.TypeValue.POINTER, initValue.getIrBaseType()),
+                initValue);
         irModule.addGlobalVariable(irGlobalVariable);
 
         return irGlobalVariable;

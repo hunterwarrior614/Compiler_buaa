@@ -321,7 +321,7 @@ public class Stmt extends Node {
                 return exp;
             }
         }
-        throw new RuntimeException("[ERROR] No exp found]");
+        return null;
     }
 
     // 'if' '(' Cond ')' Stmt1 [ 'else' Stmt2 ]
