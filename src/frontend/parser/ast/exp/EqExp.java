@@ -26,7 +26,6 @@ public class EqExp extends Node {
     }
 
     private void reConstruct() {
-        ArrayList<Node> components = getComponents();
         if (components.size() > 1) {
             EqExp eqExp = new EqExp();
             int length = components.size();
@@ -35,5 +34,30 @@ public class EqExp extends Node {
             components.add(0, eqExp);
             eqExp.reConstruct();
         }
+    }
+
+    // LLVM IR
+    public ArrayList<RelExp> getRelExps() {
+        ArrayList<RelExp> relExps = new ArrayList<>();
+        for (Node node : components) {
+            if (node instanceof EqExp eqExp) {
+                relExps.addAll(eqExp.getRelExps());
+            } else if (node instanceof RelExp relExp) {
+                relExps.add(relExp);
+            }
+        }
+        return relExps;
+    }
+
+    public ArrayList<String> getRelOps() {
+        ArrayList<String> relOps = new ArrayList<>();
+        for (Node node : components) {
+            if (node instanceof EqExp eqExp) {
+                relOps.addAll(eqExp.getRelOps());
+            } else if (node instanceof TokenNode tokenNode) {
+                relOps.add(tokenNode.getTokenValue());
+            }
+        }
+        return relOps;
     }
 }

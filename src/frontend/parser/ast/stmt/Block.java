@@ -29,7 +29,6 @@ public class Block extends Node {
 
     @Override
     public void visit() {
-        ArrayList<Node> components = getComponents();
         for (Node node : components) {
             node.visit();
             checkReturn(node);
@@ -49,5 +48,16 @@ public class Block extends Node {
                 && !SymbolManager.hasReturn()) {
             ErrorRecorder.addError(new Error(Error.Type.g, tokenNode.getLineNumber()));
         }
+    }
+
+    // LLVM IR
+    public ArrayList<BlockItem> getBlockItems() {
+        ArrayList<BlockItem> blockItems = new ArrayList<>();
+        for (Node node : components) {
+            if (node instanceof BlockItem blockItem) {
+                blockItems.add(blockItem);
+            }
+        }
+        return blockItems;
     }
 }

@@ -32,7 +32,6 @@ public class VarDecl extends Node {
 
     @Override
     public void visit() {
-        ArrayList<Node> components = getComponents();
         int idx = 0;
         boolean isStatic = components.get(idx).isTypeOfToken(TokenType.STATICTK);
         idx += isStatic ? 2 : 1;
@@ -42,5 +41,16 @@ public class VarDecl extends Node {
             ((VarDef) components.get(idx + 1)).visit(isStatic);
             idx += 2;
         }
+    }
+
+    // LLVM IR
+    public ArrayList<VarDef> getVarDefs() {
+        ArrayList<VarDef> varDefs = new ArrayList<>();
+        for (Node node : components) {
+            if (node instanceof VarDef varDef) {
+                varDefs.add(varDef);
+            }
+        }
+        return varDefs;
     }
 }

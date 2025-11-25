@@ -6,6 +6,7 @@ import error.ErrorRecorder;
 import frontend.lexer.Token;
 import frontend.parser.ast.Node;
 import midend.MidEnd;
+import midend.llvm.IrModule;
 import midend.symbol.SymbolTable;
 
 import java.io.FileInputStream;
@@ -20,6 +21,7 @@ public class IOHandler {
     private static FileOutputStream lexerOutput = null;
     private static FileOutputStream parserOutput = null;
     private static FileOutputStream symbolOutput = null;
+    private static FileOutputStream llvmIrOutput = null;
     private static FileOutputStream errorOutput = null;
 
     public static void initialize() throws FileNotFoundException {
@@ -28,6 +30,7 @@ public class IOHandler {
         parserOutput = new FileOutputStream("parser.txt");
         symbolOutput = new FileOutputStream("symbol.txt");
         errorOutput = new FileOutputStream("error.txt");
+        llvmIrOutput = new FileOutputStream("llvm_ir.txt");
     }
 
     public static PushbackInputStream getInput() {
@@ -48,6 +51,8 @@ public class IOHandler {
                 case 3:
                     IOHandler.printSymbolTable();   // 输出语义分析
                     break;
+                case 4:
+                    IOHandler.printLlvmIr();
             }
         }
     }
@@ -69,6 +74,12 @@ public class IOHandler {
         SymbolTable symbolTable = MidEnd.getSymbolTable();
         symbolOutput.write(symbolTable.toString().getBytes());
         System.out.println("symbol.txt 输出完毕");
+    }
+
+    public static void printLlvmIr() throws IOException {
+        IrModule irModule = MidEnd.getIrModule();
+        llvmIrOutput.write(irModule.toString().getBytes());
+        System.out.println("llvm_ir.txt 输出完毕");
     }
 
     public static void printError(int stage) throws IOException {

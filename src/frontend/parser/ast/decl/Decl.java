@@ -13,14 +13,23 @@ public class Decl extends Node {
 
     @Override
     public void parse() {
-        if (isConstDecl()) {
+        if (isConstDeclToken()) {
             addAndParseNode(new ConstDecl());
         } else {
             addAndParseNode(new VarDecl());
         }
     }
 
-    private boolean isConstDecl() {
+    private boolean isConstDeclToken() {
         return getCurrentToken().getType().equals(TokenType.CONSTTK);
+    }
+
+    // LLVM IR
+    public boolean isConstDecl() {
+        return components.get(0) instanceof ConstDecl;
+    }
+
+    public Node getDecl() {
+        return components.get(0);
     }
 }

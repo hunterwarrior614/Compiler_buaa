@@ -8,12 +8,13 @@ import frontend.parser.ast.TokenNode;
 import midend.symbol.Symbol;
 import midend.symbol.SymbolManager;
 import midend.symbol.SymbolType;
+import midend.symbol.ValueSymbol;
 
 import java.util.ArrayList;
 
 public class FuncFParam extends Node {
     // FuncFParam → BType Ident ['[' ']']
-    private SymbolType paramType;
+    private ValueSymbol valueSymbol;
 
     public FuncFParam() {
         super(SyntaxType.FUNC_FORMAL_PARAM);
@@ -35,7 +36,7 @@ public class FuncFParam extends Node {
         String symbolName = "";
         int identLineNumber = 0;
 
-        ArrayList<Node> components = getComponents();
+
         for (Node node : components) {
             if (node instanceof Ident ident) {
                 symbolName = ident.getTokenValue();
@@ -44,19 +45,15 @@ public class FuncFParam extends Node {
             node.visit();
         }
 
-        // IntArray
         if (components.size() > 2) {
-            SymbolManager.addSymbol(new Symbol(SymbolType.INT_ARRAY, symbolName, identLineNumber));
-            paramType = SymbolType.INT_ARRAY;
+            valueSymbol = new ValueSymbol(SymbolType.INT_ARRAY, symbolName, identLineNumber, null);   // IntArray
+        } else {
+            valueSymbol = new ValueSymbol(SymbolType.INT, symbolName, identLineNumber, null); // Int
         }
-        // Int
-        else {
-            SymbolManager.addSymbol(new Symbol(SymbolType.INT, symbolName, identLineNumber));
-            paramType = SymbolType.INT;
-        }
+        SymbolManager.addSymbol(valueSymbol);
     }
 
-    public SymbolType getParamType() {
-        return paramType;
+    public ValueSymbol getParamSymbol() {
+        return valueSymbol;
     }
 }

@@ -26,7 +26,6 @@ public class LOrExp extends Node {
     }
 
     private void reConstruct() {
-        ArrayList<Node> components = getComponents();
         if (components.size() > 1) {
             LOrExp lorExp = new LOrExp();
             int length = components.size();
@@ -35,5 +34,18 @@ public class LOrExp extends Node {
             components.add(0, lorExp);
             lorExp.reConstruct();
         }
+    }
+
+    // LLVM IR
+    public ArrayList<LAndExp> getLAndExps() {
+        ArrayList<LAndExp> lAndExps = new ArrayList<>();
+        for (Node node : components) {
+            if (node instanceof LOrExp lorExp) {
+                lAndExps.addAll(lorExp.getLAndExps());
+            } else if (node instanceof LAndExp landExp) {
+                lAndExps.add(landExp);
+            }
+        }
+        return lAndExps;
     }
 }

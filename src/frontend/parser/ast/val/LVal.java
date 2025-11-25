@@ -10,6 +10,7 @@ import frontend.parser.ast.exp.Exp;
 import midend.symbol.Symbol;
 import midend.symbol.SymbolManager;
 import midend.symbol.SymbolType;
+import midend.symbol.ValueSymbol;
 
 import java.util.ArrayList;
 
@@ -32,7 +33,6 @@ public class LVal extends Node {
 
     @Override
     public void visit() {
-        ArrayList<Node> components = getComponents();
         for (Node node : components) {
             checkUndefined(node);   // 检查未定义
             node.visit();
@@ -51,7 +51,7 @@ public class LVal extends Node {
     }
 
     public SymbolType getSymbolType() {
-        ArrayList<Node> components = getComponents();
+
         if (components.size() > 1) {
             return SymbolType.VAR;
         } else {
@@ -70,7 +70,7 @@ public class LVal extends Node {
     }
 
     public boolean isConstVar() {
-        ArrayList<Node> components = getComponents();
+
         Ident ident = (Ident) components.get(0);
         Symbol symbol = SymbolManager.getSymbol(ident.getTokenValue());
         // const int:a;
@@ -92,6 +92,50 @@ public class LVal extends Node {
     }
 
     public int getLineNumber() {
-        return ((Ident) getComponents().get(0)).getLineNumber();
+        return ((Ident) components.get(0)).getLineNumber();
+    }
+
+    // LLVM IR
+    public boolean canGetValue() {
+        String name = ((Ident) components.get(0)).getTokenValue();
+        ValueSymbol valueSymbol = (ValueSymbol) SymbolManager.getSymbol(name);
+        if (valueSymbol == null) {
+            throw new RuntimeException("[ERROR] Symbol not found in LLVM IR");
+        }
+        if (valueSymbol.getType().equals(SymbolType.CONST_INT)) {
+            return true;
+        } else if (valueSymbol.getType().equals(SymbolType.CONST_INT_ARRAY)) {
+            return ((Exp) components.get(2)).canCompute();
+        }
+        return false;
+    }
+
+    public int getValue() {
+        String name = ((Ident) components.get(0)).getTokenValue();
+        ValueSymbol valueSymbol = (ValueSymbol) SymbolManager.getSymbol(name);
+        if (valueSymbol == null) {
+            throw new RuntimeException("[ERROR] Symbol not found in LLVM IR");
+        }
+        ArrayList<Integer> valueList = valueSymbol.getValueList();
+        // 非数组
+        if (valueSymbol.getDimension() == 0) {
+            return valueList.get(0);
+        }
+        // 数组
+        else {
+            int index = ((Exp) components.get(2)).getComputationResult();
+            return valueList.get(index);
+        }
+    }
+
+    public String getIdentName() {
+        return ((Ident) components.get(0)).getTokenValue();
+    }
+
+    public Exp getIndexExp() {
+        if (components.size() > 1) {
+            return (Exp) components.get(2);
+        }
+        return null;
     }
 }

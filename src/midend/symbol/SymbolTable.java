@@ -13,6 +13,7 @@ public class SymbolTable {
 
     private final SymbolTable parentTable;
     private final ArrayList<SymbolTable> sonTables;
+    private int sonTableIndex;
 
     public SymbolTable(int id, SymbolTable parentTable) {
         this.id = id;
@@ -20,6 +21,7 @@ public class SymbolTable {
         symbolMap = new HashMap<>();
         this.parentTable = parentTable;
         sonTables = new ArrayList<>();
+        sonTableIndex = 0;
     }
 
     public void addSymbol(Symbol symbol) {
@@ -46,6 +48,10 @@ public class SymbolTable {
 
     public void addSonTable(SymbolTable sonTable) {
         sonTables.add(sonTable);
+    }
+
+    public SymbolTable getNextSonTable() {
+        return sonTables.get(sonTableIndex++);
     }
 
     public SymbolTable getParent() {

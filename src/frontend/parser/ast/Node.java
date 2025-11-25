@@ -10,16 +10,14 @@ import java.util.ArrayList;
 import java.util.List;
 
 public abstract class Node {
-    private final ArrayList<Node> components;
-    private final SyntaxType type;
-    private static Token currentToken;
+    protected final ArrayList<Node> components;
+    protected final SyntaxType type;
 
-    private static TokenStream tokenStream;
+    protected static TokenStream tokenStream;
 
     public Node(SyntaxType type) {
         components = new ArrayList<>();
         this.type = type;
-        currentToken = tokenStream.peek(0);
     }
 
     public static void initialize(TokenStream tokenStream) {
@@ -30,7 +28,6 @@ public abstract class Node {
 
     protected void next() {
         tokenStream.read();
-        currentToken = tokenStream.peek(0);
     }
 
     protected Token peekToken(int peekStep) {
@@ -38,7 +35,7 @@ public abstract class Node {
     }
 
     protected Token getCurrentToken() {
-        return currentToken;
+        return tokenStream.peek(0);
     }
 
     protected void addAndParseNode(Node node) {
@@ -50,9 +47,6 @@ public abstract class Node {
         components.addAll(nodes);
     }
 
-    protected ArrayList<Node> getComponents() {
-        return components;
-    }
 
     protected int getCurTokenPos() {
         return tokenStream.getCurPos();
@@ -60,7 +54,6 @@ public abstract class Node {
 
     protected void reset(int tokenStreamPos, int errorCount) {
         tokenStream.setReadPosition(tokenStreamPos);
-        currentToken = tokenStream.peek(0);
 
         ErrorRecorder.resetErrors(errorCount);
     }
@@ -171,5 +164,9 @@ public abstract class Node {
 
     public boolean isTypeOfToken(TokenType tokenType) {
         return this instanceof TokenNode && ((TokenNode) this).getTokenType().equals(tokenType);
+    }
+
+    public ArrayList<Node> getComponents() {
+        return components;
     }
 }

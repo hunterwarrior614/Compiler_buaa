@@ -28,6 +28,23 @@ public class Stmt extends Node {
     private int printfFStrCount = 0;
     private int printfExpCount = 0;
 
+    /* LLVM IR */
+    public enum StmtType {
+        BlockStmt,
+        IfStmt,
+        ForStmt,
+        AssignStmt,
+        ReturnStmt,
+        ExpStmt,
+        BreakStmt,
+        ContinueStmt,
+        // 库函数
+        PrintStmt,
+        GetIntStmt,
+    }
+
+    private StmtType stmtType;
+    /* LLVM IR */
 
     public Stmt() {
         super(SyntaxType.STATEMENT);
@@ -37,6 +54,7 @@ public class Stmt extends Node {
     public void parse() {
         // 'if' '(' Cond ')' Stmt [ 'else' Stmt ]
         if (getCurrentToken().getType().equals(TokenType.IFTK)) {
+            stmtType = StmtType.IfStmt;
             addAndParseNode(new TokenNode());   // 'if'
             addAndParseNode(new TokenNode());   // '('
             addAndParseNode(new Cond());    // Cond
@@ -49,6 +67,7 @@ public class Stmt extends Node {
         }
         // 'for' '(' [ForStmt] ';' [Cond] ';' [ForStmt] ')' Stmt
         else if (getCurrentToken().getType().equals(TokenType.FORTK)) {
+            stmtType = StmtType.ForStmt;
             addAndParseNode(new TokenNode());   // 'for'
             addAndParseNode(new TokenNode());   // '('
             // [ForStmt]
@@ -70,16 +89,19 @@ public class Stmt extends Node {
         }
         // 'break' ';'
         else if (getCurrentToken().getType().equals(TokenType.BREAKTK)) {
+            stmtType = StmtType.BreakStmt;
             addAndParseNode(new TokenNode());   // 'break'
             checkSemicolon();   // ;
         }
         // 'continue' ';'
         else if (getCurrentToken().getType().equals(TokenType.CONTINUETK)) {
+            stmtType = StmtType.ContinueStmt;
             addAndParseNode(new TokenNode());   // 'continue'
             checkSemicolon();   // ';'
         }
         // 'return' [Exp] ';'
         else if (getCurrentToken().getType().equals(TokenType.RETURNTK)) {
+            stmtType = StmtType.ReturnStmt;
             addAndParseNode(new TokenNode());   // 'return'
             // [Exp]
             if (!isSemicolonToken() && isExp()) {
@@ -89,6 +111,7 @@ public class Stmt extends Node {
         }
         // 'printf''('StringConst {','Exp}')'';'
         else if (getCurrentToken().getType().equals(TokenType.PRINTFTK)) {
+            stmtType = StmtType.PrintStmt;
             addAndParseNode(new TokenNode());   // 'printf'
             addAndParseNode(new TokenNode());   // '('
             TokenNode strConToken = new TokenNode();
@@ -104,6 +127,7 @@ public class Stmt extends Node {
         }
         // Block
         else if (isLeftBraceToken()) {
+            stmtType = StmtType.BlockStmt;
             addAndParseNode(new Block());
         }
         // LVal '=' Exp ';' 或者 Exp ';'
@@ -117,11 +141,18 @@ public class Stmt extends Node {
                 reset(originPos, errorCount);   // 回溯
                 addAndParseNode(new LVal());    // LVal
                 addAndParseNode(new TokenNode());   // '='
+                // LLVM IR 部分，判断是否是getint
+                if (getCurrentToken().getContent().equals("getint")) {
+                    stmtType = StmtType.GetIntStmt;
+                } else {
+                    stmtType = StmtType.AssignStmt;
+                }
                 addAndParseNode(new Exp()); // Exp
                 checkSemicolon();   // ';'
             }
             // Exp ';'
             else {
+                stmtType = StmtType.ExpStmt;
                 reset(originPos, errorCount);   // 回溯
                 addAndParseNode(new Exp()); // Exp
                 checkSemicolon();   // ';'
@@ -129,6 +160,7 @@ public class Stmt extends Node {
         }
         // [Exp] ';'
         else {
+            stmtType = StmtType.ExpStmt;
             // [Exp]
             if (!isSemicolonToken() && isExp()) {
                 addAndParseNode(new Exp());
@@ -145,7 +177,6 @@ public class Stmt extends Node {
 
     @Override
     public void visit() {
-        ArrayList<Node> components = getComponents();
         // 如果是Block，就要进入新的作用域，需要创建字符号表
         if (components.get(0) instanceof Block) {
             SymbolManager.createSonSymbolTable();
@@ -238,5 +269,123 @@ public class Stmt extends Node {
         if (!SymbolManager.inLoopBlock()) {
             ErrorRecorder.addError(new Error(Error.Type.m, errorLineNumber));
         }
+    }
+
+    /* LLVM IR */
+    public StmtType getStmtType() {
+        return stmtType;
+    }
+
+    // 'return' [Exp] ';'
+    public boolean hasReturnValue() {
+        return stmtType == StmtType.ReturnStmt && components.size() > 2;
+    }
+
+    public Exp getReturnExp() {
+        return (Exp) components.get(1);
+    }
+
+    // LVal '=' Exp ';'
+    public LVal getAssignLVal() {
+        return (LVal) components.get(0);
+    }
+
+    public Exp getAssignExp() {
+        return (Exp) components.get(2);
+    }
+
+    // Block
+    public Block getBlock() {
+        return (Block) components.get(0);
+    }
+
+    // 'printf''('StringConst {','Exp}')'';'
+    public String getPrintfFStr() {
+        return ((TokenNode) components.get(2)).getTokenValue();
+    }
+
+    public ArrayList<Exp> getPrintfExpList() {
+        ArrayList<Exp> printfExpList = new ArrayList<>();
+        for (Node node : components) {
+            if (node instanceof Exp exp) {
+                printfExpList.add(exp);
+            }
+        }
+        return printfExpList;
+    }
+
+    // [Exp] ';'
+    public Exp getExp() {
+        for (Node node : components) {
+            if (node instanceof Exp exp) {
+                return exp;
+            }
+        }
+        throw new RuntimeException("[ERROR] No exp found]");
+    }
+
+    // 'if' '(' Cond ')' Stmt1 [ 'else' Stmt2 ]
+    public Cond getIfCond() {
+        for (Node node : components) {
+            if (node instanceof Cond cond) {
+                return cond;
+            }
+        }
+        throw new RuntimeException("[ERROR] No cond found");
+    }
+
+    public Stmt getIfStmt() {
+        return (Stmt) components.get(4);
+    }
+
+    public boolean hasElseStmt() {
+        return components.size() > 5;
+    }
+
+    public Stmt getElseStmt() {
+        return (Stmt) components.get(6);
+    }
+
+    // 'for' '(' [ForStmt] ';' [Cond] ';' [ForStmt] ')' Stmt
+    public ForStmt getInitForStmt() {
+        for (int i = 0; i < components.size() - 1; i++) {
+            if (components.get(i) instanceof TokenNode tokenNode) {
+                if (tokenNode.getTokenValue().equals("(") && components.get(i + 1) instanceof ForStmt forStmt) {
+                    return forStmt;
+                }
+            }
+        }
+        return null;
+    }
+
+    public Cond getForCond() {
+        for (int i = 0; i < components.size() - 1; i++) {
+            if (components.get(i) instanceof TokenNode tokenNode) {
+                if (tokenNode.getTokenValue().equals(";") && components.get(i + 1) instanceof Cond cond) {
+                    return cond;
+                }
+            }
+        }
+        return null;
+    }
+
+    public Stmt getForBody() {
+        for (Node node : components) {
+            if (node instanceof Stmt stmt) {
+                return stmt;
+            }
+        }
+        throw new RuntimeException("[ERROR] No for body found");
+    }
+
+    public ForStmt getStepForStmt() {
+        for (int i = 0; i < components.size() - 1; i++) {
+            if (components.get(i) instanceof TokenNode tokenNode) {
+                if (tokenNode.getTokenValue().equals(";") && components.get(i + 1) instanceof ForStmt forStmt) {
+                    return forStmt;
+                }
+            }
+        }
+        return null;
     }
 }

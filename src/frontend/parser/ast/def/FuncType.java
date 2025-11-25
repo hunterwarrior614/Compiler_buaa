@@ -17,6 +17,6 @@ public class FuncType extends Node {
     }
 
     public TokenType getFuncType() {
-        return ((TokenNode) getComponents().get(0)).getTokenType();
+        return ((TokenNode) components.get(0)).getTokenType();
     }
 }

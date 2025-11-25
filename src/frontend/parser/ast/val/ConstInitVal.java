@@ -5,6 +5,8 @@ import frontend.parser.ast.SyntaxType;
 import frontend.parser.ast.TokenNode;
 import frontend.parser.ast.exp.ConstExp;
 
+import java.util.ArrayList;
+
 public class ConstInitVal extends Node {
     // ConstInitVal → ConstExp | '{' [ ConstExp { ',' ConstExp } ] '}'
     public ConstInitVal() {
@@ -28,5 +30,15 @@ public class ConstInitVal extends Node {
         } else {
             addAndParseNode(new ConstExp());
         }
+    }
+
+    public ArrayList<Integer> getValueList() {
+        ArrayList<Integer> valueList = new ArrayList<>();
+        for (Node node : components) {
+            if (node instanceof ConstExp constExp) {
+                valueList.add(constExp.getComputationResult());
+            }
+        }
+        return valueList;
     }
 }

@@ -1,15 +1,12 @@
 package frontend.parser.ast.exp;
 
-import frontend.lexer.Token;
 import frontend.lexer.TokenType;
 import frontend.parser.ast.Node;
 import frontend.parser.ast.SyntaxType;
 import frontend.parser.ast.TokenNode;
 import midend.symbol.SymbolType;
 
-import java.util.ArrayList;
-
-public class AddExp extends Node {
+public class AddExp extends ExpNode {
     // AddExp → MulExp | AddExp ('+' | '−') MulExp
     // 改写为 AddExp → MulExp { ('+' | '-') MulExp }
     public AddExp() {
@@ -32,7 +29,6 @@ public class AddExp extends Node {
     }
 
     private void reConstruct() {
-        ArrayList<Node> components = getComponents();
         if (components.size() > 1) {
             AddExp addExp = new AddExp();
             int length = components.size();
@@ -47,11 +43,50 @@ public class AddExp extends Node {
     }
 
     public SymbolType getSymbolType() {
-        ArrayList<Node> components = getComponents();
         if (components.size() > 1) {
             return SymbolType.VAR;
         } else {
             return ((MulExp) components.get(0)).getSymbolType();
         }
+    }
+
+    // LLVM IR
+    public boolean canCompute() {
+        boolean canCompute = true;
+        if (this.canCompute == -1) {
+            for (Node node : components) {
+                if ((node instanceof AddExp addExp && !addExp.canCompute()) ||
+                        (node instanceof MulExp mulExp && !mulExp.canCompute())) {
+                    canCompute = false;
+                }
+            }
+            this.canCompute = canCompute ? 1 : 0;
+            return canCompute;
+        } else {
+            return this.canCompute == 1;
+        }
+    }
+
+    public int getComputationResult() {
+        if (!canCompute()) {
+            throw new RuntimeException("[ERROR] Can't compute result");
+        }
+        if (validResult) {
+            return computationResult;
+        }
+
+        validResult = true;
+        if (components.size() == 1) {
+            computationResult = ((MulExp) components.get(0)).getComputationResult();
+        } else {
+            int addResult = ((AddExp) components.get(0)).getComputationResult();
+            int mulResult = ((MulExp) components.get(2)).getComputationResult();
+            if (components.get(1).isTypeOfToken(TokenType.PLUS)) {
+                computationResult = addResult + mulResult;
+            } else {
+                computationResult = addResult - mulResult;
+            }
+        }
+        return computationResult;
     }
 }

@@ -14,4 +14,9 @@ public class Cond extends Node {
     public void parse() {
         addAndParseNode(new LOrExp());
     }
+
+    // LLVM IR
+    public LOrExp getLOrExp() {
+        return (LOrExp) components.get(0);
+    }
 }

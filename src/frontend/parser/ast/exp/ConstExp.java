@@ -14,4 +14,8 @@ public class ConstExp extends Node {
     public void parse() {
         addAndParseNode(new AddExp());
     }
+
+    public int getComputationResult() {
+        return ((AddExp) getComponents().get(0)).getComputationResult();
+    }
 }

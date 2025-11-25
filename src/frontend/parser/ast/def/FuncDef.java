@@ -1,7 +1,5 @@
 package frontend.parser.ast.def;
 
-import error.Error;
-import error.ErrorRecorder;
 import frontend.lexer.TokenType;
 import frontend.parser.ast.Ident;
 import frontend.parser.ast.stmt.Block;
@@ -9,14 +7,15 @@ import frontend.parser.ast.param.FuncFParams;
 import frontend.parser.ast.Node;
 import frontend.parser.ast.SyntaxType;
 import frontend.parser.ast.TokenNode;
-import midend.symbol.Symbol;
+import midend.symbol.FuncSymbol;
 import midend.symbol.SymbolManager;
 import midend.symbol.SymbolType;
 
-import java.util.ArrayList;
 
 public class FuncDef extends Node {
     // FuncDef → FuncType Ident '(' [FuncFParams] ')' Block
+    private FuncSymbol func;
+
     public FuncDef() {
         super(SyntaxType.FUNC_DEF);
     }
@@ -35,11 +34,9 @@ public class FuncDef extends Node {
 
     @Override
     public void visit() {
-        ArrayList<Node> components = getComponents();
-
         SymbolType symbolType = ((FuncType) components.get(0)).getFuncType().equals(TokenType.INTTK) ? SymbolType.INT_FUNC : SymbolType.VOID_FUNC;
         Ident ident = (Ident) components.get(1);
-        Symbol func = new Symbol(symbolType, ident.getTokenValue(), ident.getLineNumber());
+        func = new FuncSymbol(symbolType, ident.getTokenValue(), ident.getLineNumber());
         SymbolManager.addSymbol(func);    // 将函数填入当前符号表
         SymbolManager.createSonSymbolTable();   // 即将进入内层作用域，创建子符号表
 
@@ -49,10 +46,24 @@ public class FuncDef extends Node {
             }
             node.visit();
             if (node instanceof FuncFParams funcFParams) {
-                func.setParamsType(funcFParams.getParamsType());
+                func.setParamsType(funcFParams.getParamSymbols());
             }
         }
 
         SymbolManager.goOutOfFuncBlock();   // 最后要出函数体
+    }
+
+    // LLVM IR
+    public FuncSymbol getFuncSymbol() {
+        return func;
+    }
+
+    public Block getBlock() {
+        for (Node node : components) {
+            if (node instanceof Block block) {
+                return block;
+            }
+        }
+        return null;
     }
 }

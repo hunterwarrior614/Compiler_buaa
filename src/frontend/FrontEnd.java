@@ -3,6 +3,7 @@ package frontend;
 import frontend.lexer.Lexer;
 import frontend.lexer.Token;
 import frontend.parser.Parser;
+import frontend.parser.ast.CompUnit;
 import frontend.parser.ast.Node;
 import utils.IOHandler;
 
@@ -30,7 +31,7 @@ public class FrontEnd {
         return lexer.getTokenList();
     }
 
-    public static Node getAstTree() {
+    public static CompUnit getAstTree() {
         return parser.getAstTree();
     }
 }

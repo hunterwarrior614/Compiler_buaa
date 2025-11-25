@@ -8,13 +8,13 @@ import frontend.parser.ast.param.FuncRParams;
 import frontend.parser.ast.Node;
 import frontend.parser.ast.SyntaxType;
 import frontend.parser.ast.TokenNode;
-import midend.symbol.Symbol;
+import midend.symbol.FuncSymbol;
 import midend.symbol.SymbolManager;
 import midend.symbol.SymbolType;
 
 import java.util.ArrayList;
 
-public class UnaryExp extends Node {
+public class UnaryExp extends ExpNode {
     // UnaryExp → PrimaryExp | Ident '(' [FuncRParams] ')' | UnaryOp UnaryExp
     // 改写为：UnaryExp → { UnaryOp } (PrimaryExp | Ident '(' [FuncRParams] ')')
     public UnaryExp() {
@@ -44,9 +44,8 @@ public class UnaryExp extends Node {
 
     @Override
     public void visit() {
-        ArrayList<Node> components = getComponents();
         if (components.get(0) instanceof Ident) {
-            Symbol func = null;
+            FuncSymbol func = null;
             FuncRParams funcRParams = null;
             int lineNumber = 0;
             for (Node node : components) {
@@ -54,7 +53,7 @@ public class UnaryExp extends Node {
                 if (node instanceof Ident ident) {
                     String identName = ident.getTokenValue();
                     lineNumber = ident.getLineNumber();
-                    Symbol symbol = SymbolManager.getSymbol(identName);
+                    FuncSymbol symbol = (FuncSymbol) SymbolManager.getSymbol(identName);
                     if (symbol == null) {
                         ErrorRecorder.addError(new Error(Error.Type.c, lineNumber));
                     } else {
@@ -87,7 +86,6 @@ public class UnaryExp extends Node {
     }
 
     private void reConstruct() {
-        ArrayList<Node> components = getComponents();
         if (components.get(0) instanceof UnaryOp) {
             UnaryExp unaryExp = new UnaryExp();
             unaryExp.addNodes(components.subList(1, components.size()));
@@ -98,7 +96,7 @@ public class UnaryExp extends Node {
     }
 
 
-    private void checkFuncParams(Node node, Symbol func, FuncRParams funcRParams, int lineNumber) {
+    private void checkFuncParams(Node node, FuncSymbol func, FuncRParams funcRParams, int lineNumber) {
         if (func == null || !(node instanceof TokenNode tokenNode && tokenNode.isTypeOfToken(TokenType.RPARENT))) {
             return;
         }
@@ -120,11 +118,89 @@ public class UnaryExp extends Node {
     }
 
     public SymbolType getSymbolType() {
-        ArrayList<Node> components = getComponents();
         if (components.size() > 1) {
             return SymbolType.VAR;
         } else {
             return ((PrimaryExp) components.get(0)).getSymbolType();
         }
+    }
+
+    /* LLVM IR */
+    public boolean canCompute() {
+        boolean canCompute;
+        if (this.canCompute == -1) {
+            // PrimaryExp
+            if (components.size() == 1) {
+                canCompute = ((PrimaryExp) components.get(0)).canCompute();
+                this.canCompute = canCompute ? 1 : 0;
+                return canCompute;
+            }
+            // UnaryOp UnaryExp
+            else if (components.size() == 2) {
+                canCompute = ((UnaryExp) components.get(1)).canCompute();
+                this.canCompute = canCompute ? 1 : 0;
+                return canCompute;
+            }
+            // Ident '(' [FuncRParams] ')'
+            else {
+                this.canCompute = 0;
+                return false;
+            }
+        } else {
+            return this.canCompute == 1;
+        }
+    }
+
+    public int getComputationResult() {
+        if (!canCompute()) {
+            throw new RuntimeException("[ERROR] Can't compute result");
+        }
+        if (validResult) {
+            return computationResult;
+        }
+
+        validResult = true;
+        if (components.size() == 1) {
+            // PrimaryExp
+            computationResult = ((PrimaryExp) components.get(0)).getComputationResult();
+        } else {
+            // UnaryOp UnaryExp
+            TokenType opType = ((UnaryOp) components.get(0)).getOperator();
+            int unaryResult = ((UnaryExp) components.get(1)).getComputationResult();
+            if (opType.equals(TokenType.MINU)) {
+                unaryResult *= -1;
+            }
+            computationResult = unaryResult;
+        }
+        return computationResult;
+    }
+
+    // PrimaryExp
+    public PrimaryExp getPrimaryExp() {
+        return (PrimaryExp) components.get(0);
+    }
+
+    // UnaryOp UnaryExp
+    public String getUnaryOp() {
+        return ((TokenNode) components.get(0)).getTokenValue();
+    }
+
+    public UnaryExp getUnaryExp() {
+        return (UnaryExp) components.get(1);
+    }
+
+    // Ident '(' [FuncRParams] ')'
+    public String getIdentName() {
+        return ((TokenNode) components.get(0)).getTokenValue();
+    }
+
+    public ArrayList<Exp> getParams() {
+        ArrayList<Exp> params = new ArrayList<>();
+        for (Node node : components) {
+            if (node instanceof FuncRParams funcRParams) {
+                params.addAll(funcRParams.getParamList());
+            }
+        }
+        return params;
     }
 }

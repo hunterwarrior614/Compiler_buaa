@@ -29,4 +29,15 @@ public class ConstDecl extends Node {
         // ';'
         checkSemicolon();
     }
+
+    // LLVM IR
+    public ArrayList<ConstDef> getConstDefs() {
+        ArrayList<ConstDef> constDefs = new ArrayList<>();
+        for (Node node : components) {
+            if (node instanceof ConstDef constDef) {
+                constDefs.add(constDef);
+            }
+        }
+        return constDefs;
+    }
 }

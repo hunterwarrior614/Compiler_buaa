@@ -6,9 +6,7 @@ import frontend.parser.ast.SyntaxType;
 import frontend.parser.ast.TokenNode;
 import midend.symbol.SymbolType;
 
-import java.util.ArrayList;
-
-public class MulExp extends Node {
+public class MulExp extends ExpNode {
     // MulExp → UnaryExp | MulExp ('*' | '/' | '%') UnaryExp
     // 改写为： MulExp → UnaryExp { ('*' | '/' | '%') UnaryExp }
     public MulExp() {
@@ -31,7 +29,6 @@ public class MulExp extends Node {
     }
 
     private void reConstruct() {
-        ArrayList<Node> components = getComponents();
         if (components.size() > 1) {
             MulExp mulExp = new MulExp();
             int length = components.size();
@@ -44,11 +41,52 @@ public class MulExp extends Node {
     }
 
     public SymbolType getSymbolType() {
-        ArrayList<Node> components = getComponents();
         if (components.size() > 1) {
             return SymbolType.VAR;
         } else {
             return ((UnaryExp) components.get(0)).getSymbolType();
         }
+    }
+
+    // LLVM IR
+    public boolean canCompute() {
+        boolean canCompute = true;
+        if (this.canCompute == -1) {
+            for (Node node : components) {
+                if ((node instanceof MulExp mulExp && !mulExp.canCompute()) ||
+                        (node instanceof UnaryExp unaryExp && !unaryExp.canCompute())) {
+                    canCompute = false;
+                }
+            }
+            this.canCompute = canCompute ? 1 : 0;
+            return canCompute;
+        } else {
+            return this.canCompute == 1;
+        }
+    }
+
+    public int getComputationResult() {
+        if (!canCompute()) {
+            throw new RuntimeException("[ERROR] Can't compute result");
+        }
+        if (validResult) {
+            return computationResult;
+        }
+
+        validResult = true;
+        if (components.size() == 1) {
+            computationResult = ((UnaryExp) components.get(0)).getComputationResult();
+        } else {
+            int mulResult = ((MulExp) components.get(0)).getComputationResult();
+            int unaryResult = ((UnaryExp) components.get(2)).getComputationResult();
+            if (components.get(1).isTypeOfToken(TokenType.MULT)) {
+                computationResult = mulResult * unaryResult;
+            } else if (components.get(1).isTypeOfToken(TokenType.DIV)) {
+                computationResult = mulResult / unaryResult;    // TODO:除零？
+            } else {
+                computationResult = mulResult % unaryResult;
+            }
+        }
+        return computationResult;
     }
 }

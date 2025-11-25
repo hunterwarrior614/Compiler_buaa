@@ -14,4 +14,9 @@ public class Number extends Node {
     public void parse() {
         addAndParseNode(new TokenNode());
     }
+
+    // LLVM IR
+    public int getIntValue() {
+        return Integer.parseInt(((TokenNode) components.get(0)).getTokenValue());
+    }
 }

@@ -5,6 +5,7 @@ import frontend.parser.ast.SyntaxType;
 import frontend.parser.ast.TokenNode;
 import midend.symbol.Symbol;
 import midend.symbol.SymbolType;
+import midend.symbol.ValueSymbol;
 
 import java.util.ArrayList;
 
@@ -30,11 +31,11 @@ public class FuncFParams extends Node {
         }
     }
 
-    public ArrayList<SymbolType> getParamsType() {
-        ArrayList<SymbolType> types = new ArrayList<>();
+    public ArrayList<ValueSymbol> getParamSymbols() {
+        ArrayList<ValueSymbol> symbols = new ArrayList<>();
         for (FuncFParam param : funcFParams) {
-            types.add(param.getParamType());
+            symbols.add(param.getParamSymbol());
         }
-        return types;
+        return symbols;
     }
 }

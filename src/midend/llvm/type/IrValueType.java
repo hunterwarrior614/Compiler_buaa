@@ -1,0 +1,24 @@
+package midend.llvm.type;
+
+public enum IrValueType {
+    ARGUMENT,
+    BASIC_BLOCK,
+
+    CONST_DATA,
+
+    FUNCTION,
+    GLOBAL_VARIABLE,
+
+    ALU_INSTR,
+    RETURN_INSTR,
+    ALLOCATE_INSTR,
+    LOAD_INSTR,
+    STORE_INSTR,
+    INPUT_INSTR,
+    OUTPUT_INSTR,
+    CALL_INSTR,
+    COMPARE_INSTR,
+    BRANCH_INSTR,
+    JUMP_INSTR,
+    GETELEM_INSTR,
+}

@@ -31,7 +31,6 @@ public class ForStmt extends Node {
 
     @Override
     public void visit() {
-        ArrayList<Node> components = getComponents();
         for (Node node : components) {
             node.visit();
             checkModified(node);
@@ -47,5 +46,26 @@ public class ForStmt extends Node {
         if (lVal.isConstVar()) {
             ErrorRecorder.addError(new error.Error(Error.Type.h, lValLineNumber));
         }
+    }
+
+    // LLVM IR
+    public ArrayList<LVal> getLVals() {
+        ArrayList<LVal> lVals = new ArrayList<>();
+        for (Node node : components) {
+            if (node instanceof LVal lVal) {
+                lVals.add(lVal);
+            }
+        }
+        return lVals;
+    }
+
+    public ArrayList<Exp> getExps() {
+        ArrayList<Exp> exps = new ArrayList<>();
+        for (Node node : components) {
+            if (node instanceof Exp exp) {
+                exps.add(exp);
+            }
+        }
+        return exps;
     }
 }

@@ -28,7 +28,6 @@ public class MainFuncDef extends Node {
 
     @Override
     public void visit() {
-        ArrayList<Node> components = getComponents();
         for (Node node : components) {
             if (node instanceof Block) {
                 SymbolManager.createSonSymbolTable();
@@ -38,5 +37,15 @@ public class MainFuncDef extends Node {
         }
 
         SymbolManager.goOutOfFuncBlock();   // 最后要出函数体
+    }
+
+    // LLVM IR
+    public Block getBlock() {
+        for(Node node : components) {
+            if (node instanceof Block block) {
+                return block;
+            }
+        }
+        return null;
     }
 }

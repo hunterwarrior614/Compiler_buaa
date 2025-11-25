@@ -51,8 +51,8 @@ public class SymbolManager {
     }
 
     public static void addSystemSymbol() {
-        rootSymbolTable.addSymbol(new Symbol(SymbolType.SYS_FUNC, "printf", 0));
-        rootSymbolTable.addSymbol(new Symbol(SymbolType.SYS_FUNC, "getint", 0));
+        rootSymbolTable.addSymbol(new FuncSymbol(SymbolType.SYS_FUNC, "printf", 0));
+        rootSymbolTable.addSymbol(new FuncSymbol(SymbolType.SYS_FUNC, "getint", 0));
     }
 
     public static void deleteSystemSymbol() {
@@ -114,4 +114,12 @@ public class SymbolManager {
         return hasReturn;
     }
 
+    // LLVM IR
+    public static void goToSonSymbolTable() {
+        currentSymbolTable = currentSymbolTable.getNextSonTable();
+    }
+
+    public static boolean isGlobal() {
+        return currentSymbolTable == rootSymbolTable;
+    }
 }
