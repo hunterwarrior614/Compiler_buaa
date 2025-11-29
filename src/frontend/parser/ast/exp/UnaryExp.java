@@ -53,7 +53,7 @@ public class UnaryExp extends ExpNode {
                 if (node instanceof Ident ident) {
                     String identName = ident.getTokenValue();
                     lineNumber = ident.getLineNumber();
-                    FuncSymbol symbol = (FuncSymbol) SymbolManager.getSymbol(identName);
+                    FuncSymbol symbol = (FuncSymbol) SymbolManager.getSymbol(identName, false);
                     if (symbol == null) {
                         ErrorRecorder.addError(new Error(Error.Type.c, lineNumber));
                     } else {
@@ -169,6 +169,8 @@ public class UnaryExp extends ExpNode {
             int unaryResult = ((UnaryExp) components.get(1)).getComputationResult();
             if (opType.equals(TokenType.MINU)) {
                 unaryResult *= -1;
+            }else if(opType.equals(TokenType.NOT)) {    // 千万不要忘了取反！
+                unaryResult = unaryResult == 0 ? 1 : 0;
             }
             computationResult = unaryResult;
         }

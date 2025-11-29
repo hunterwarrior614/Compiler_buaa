@@ -14,6 +14,7 @@ public class Symbol {
         this.type = type;
         this.name = name;
         this.lineNumber = lineNumber;
+        irValue = null;
     }
 
     public void setSymbolTableId(int id) {

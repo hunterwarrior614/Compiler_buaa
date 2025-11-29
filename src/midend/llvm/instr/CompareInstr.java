@@ -51,6 +51,7 @@ public class CompareInstr extends IrInstr {
 
     @Override
     public String toString() {
+        // %3 = icmp ne i32 %2, 0
         StringBuilder sb = new StringBuilder();
         sb.append(name).append(" = icmp ").append(compType).append(" ");
         IrValue lValue = getLValue();

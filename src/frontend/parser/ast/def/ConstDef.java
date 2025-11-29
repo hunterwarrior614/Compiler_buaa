@@ -59,7 +59,7 @@ public class ConstDef extends Node {
 
     // LLVM IR
     public void setValueToSymbol() {
-        ValueSymbol valueSymbol = (ValueSymbol) SymbolManager.getSymbol(getIdentName());
+        ValueSymbol valueSymbol = (ValueSymbol) SymbolManager.getSymbol(getIdentName(), false);
         if (valueSymbol == null) {
             throw new RuntimeException("[ERROR] Symbol not found in LLVM IR");
         }

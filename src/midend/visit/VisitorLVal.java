@@ -18,7 +18,7 @@ public class VisitorLVal {
     }
 
     private static IrValue visitLValAsLValue(LVal lval) {
-        ValueSymbol valueSymbol = (ValueSymbol) SymbolManager.getSymbol(lval.getIdentName());
+        ValueSymbol valueSymbol = (ValueSymbol) SymbolManager.getSymbol(lval.getIdentName(), true);
         if (valueSymbol == null) {
             throw new RuntimeException("[ERROR] Symbol not found in LLVM IR");
         }
@@ -49,7 +49,7 @@ public class VisitorLVal {
     }
 
     private static IrValue visitLValAsRValue(LVal lval) {
-        ValueSymbol valueSymbol = (ValueSymbol) SymbolManager.getSymbol(lval.getIdentName());
+        ValueSymbol valueSymbol = (ValueSymbol) SymbolManager.getSymbol(lval.getIdentName(), true);
         if (valueSymbol == null) {
             throw new RuntimeException("[ERROR] Symbol not found in LLVM IR");
         }
@@ -61,9 +61,16 @@ public class VisitorLVal {
         // 数组
         else {
             IrValue arrayPointer = valueSymbol.getIrValue();    // 获取数组基地址
-            // 如果没有索引，则直接获取数组首地址
+            // 如果没有索引，则直接获取数组首元素地址
             if (lval.getIndexExp() == null) {
-                return new GetElemInstr(arrayPointer, new IrConstInt(0));
+                // arrayPointer 是数组指针，从数组获取首元素地址
+                if (arrayPointer.getIrBaseType().getPointValueTypeValue().equals(IrBaseType.TypeValue.INT_ARRAY)) {
+                    return new GetElemInstr(arrayPointer, new IrConstInt(0));
+                }
+                // 如果 arrayPointer 是二级指针（指向首元素地址的指针），则返回其引用值（首元素地址）
+                else {
+                    return new LoadInstr(arrayPointer);  // 获取到首元素地址并返回
+                }
             } else {
                 IrValue index = VisitorExp.visitExp(lval.getIndexExp());    // 获取索引
                 // arrayPointer 是数组指针，直接从数组加载
@@ -71,7 +78,7 @@ public class VisitorLVal {
                     IrValue elemPointer = new GetElemInstr(arrayPointer, index);    // 获取到目标元素地址
                     return new LoadInstr(elemPointer);
                 }
-                // arrayPointer 是二级指针，先获取到首元素地址，再加载
+                // arrayPointer 是二级指针（指向首元素地址的指针），先获取到首元素地址，再加载
                 else {
                     IrValue basePointer = new LoadInstr(arrayPointer);  // 获取到首元素地址
                     IrValue element = new GetElemInstr(basePointer, index); // 获取到目标元素地址

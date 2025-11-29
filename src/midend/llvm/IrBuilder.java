@@ -18,6 +18,7 @@ public class IrBuilder {
     private static IrFunc currentIrFunc = null;
     private static IrBasicBlock currentIrBasicBlock = null;
     private static final HashMap<String, Integer> localVarCountMap = new HashMap<>();   // 用于计数函数中出现的变量（虚拟寄存器）
+    private static final HashMap<String, HashMap<String, Integer>> staticVarCountMap = new HashMap<>();   // 用于计数函数中出现的静态变量
     private static final Stack<IrLoop> loopStack = new Stack<>();   // 用于存储嵌套循环
 
     private static int basicBlockCount = 0;
@@ -39,6 +40,7 @@ public class IrBuilder {
 
         // 加入计数表中
         localVarCountMap.put(funcName, -1);
+        staticVarCountMap.put(funcName, new HashMap<>());
 
         return irFunc;
     }
@@ -78,6 +80,17 @@ public class IrBuilder {
         count++;
         localVarCountMap.put(currentIrFunc.getName(), count);
         return "%var_" + count;
+    }
+
+    // 静态变量
+    public static String getStaticVarName(String varName) {
+        HashMap<String, Integer> map = staticVarCountMap.get(currentIrFunc.getName());
+        if (map.containsKey(varName)) {
+            map.put(varName, map.get(varName) + 1);
+        } else {
+            map.put(varName, 0);
+        }
+        return varName + map.get(varName);
     }
 
     public static IrConstStr createIrConstStr(String constStr) {

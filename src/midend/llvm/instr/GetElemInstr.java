@@ -35,7 +35,7 @@ public class GetElemInstr extends IrInstr {
             sb.append(baseAddr.getIrBaseType().getPointValueType()).append(", ").append(baseAddr.getIrBaseType()).append(" ").append(baseAddr.getName());
             sb.append(", i32 0, i32 ").append(getOffset().getName());
         }
-        // 传入的baseAddr是指针
+        // 传入的baseAddr是INT32指针
         else {
             sb.append("i32, i32* ").append(baseAddr.getName()).append(", i32 ").append(getOffset().getName());
         }

@@ -6,11 +6,9 @@ import midend.llvm.type.IrValueType;
 import midend.llvm.value.IrValue;
 
 public class ExtendInstr extends IrInstr {
-    private final IrBaseType targetType;
 
     public ExtendInstr(IrValue originValue, IrBaseType targetType) {
-        super(IrValueType.EXTEND_INSTR, new IrBaseType(IrBaseType.TypeValue.INT32), IrBuilder.getLocalVarName());
-        this.targetType = targetType;
+        super(IrValueType.EXTEND_INSTR, targetType, IrBuilder.getLocalVarName());
         usees.add(originValue);
     }
 
@@ -20,11 +18,11 @@ public class ExtendInstr extends IrInstr {
 
     @Override
     public String toString() {
-        // %5 = zext i8 %3 to i32
+        // %5 = zext i1 %3 to i32
         StringBuilder sb = new StringBuilder();
         sb.append(name).append(" = zext ");
-        sb.append(getOriginValue().getIrBaseType()).append(" ").append(getOriginValue().getName()).append(" to ");
-        sb.append(targetType);
+        sb.append(getOriginValue().getIrBaseType()).append(" ").append(getOriginValue().getName());
+        sb.append(" to ").append(irBaseType);
         return sb.toString();
     }
 }

@@ -114,7 +114,7 @@ public class VisitorExp {
                 return new GetIntInstr();
             }
 
-            FuncSymbol funcSymbol = (FuncSymbol) SymbolManager.getSymbol(funcName);
+            FuncSymbol funcSymbol = (FuncSymbol) SymbolManager.getSymbol(funcName, true);
             if (funcSymbol == null) {
                 throw new RuntimeException("[ERROR] Can't find funcSymbol");
             }
@@ -186,6 +186,10 @@ public class VisitorExp {
         IrValue rValue;
         for (int i = 1; i < relExps.size(); i++) {
             rValue = visitRelExp(relExps.get(i));
+            // 有可能出现 INT32 与 INT1 比较，所以都先转为 INT32 型
+            lValue = convertIrBasicType(lValue, IrBaseType.TypeValue.INT32);
+            rValue = convertIrBasicType(rValue, IrBaseType.TypeValue.INT32);
+
             lValue = new CompareInstr(relOps.get(i - 1), lValue, rValue);
         }
         lValue = new CompareInstr("!=", lValue, new IrConstInt(0)); // 最后获取eqExp的真值
@@ -201,8 +205,19 @@ public class VisitorExp {
         IrValue rValue;
         for (int i = 1; i < addExps.size(); i++) {
             rValue = visitAddExp(addExps.get(i));
+            // 有可能出现 INT32 与 INT1 比较，所以都先转为 INT32 型
+            lValue = convertIrBasicType(lValue, IrBaseType.TypeValue.INT32);
+            rValue = convertIrBasicType(rValue, IrBaseType.TypeValue.INT32);
+
             lValue = new CompareInstr(relOps.get(i - 1), lValue, rValue);
         }
         return lValue;
+    }
+
+    private static IrValue convertIrBasicType(IrValue irValue, IrBaseType.TypeValue typeValue) {
+        if (!irValue.getIrBaseTypeValue().equals(typeValue)) {
+            return new ExtendInstr(irValue, new IrBaseType(typeValue));
+        }
+        return irValue;
     }
 }

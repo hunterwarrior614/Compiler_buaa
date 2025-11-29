@@ -45,18 +45,17 @@ public class LVal extends Node {
         }
 
         String identName = ident.getTokenValue();
-        if (SymbolManager.getSymbol(identName) == null) {
+        if (SymbolManager.getSymbol(identName, false) == null) {
             ErrorRecorder.addError(new Error(Error.Type.c, ident.getLineNumber()));
         }
     }
 
     public SymbolType getSymbolType() {
-
         if (components.size() > 1) {
             return SymbolType.VAR;
         } else {
             Ident ident = (Ident) components.get(0);
-            Symbol symbol = SymbolManager.getSymbol(ident.getTokenValue());
+            Symbol symbol = SymbolManager.getSymbol(ident.getTokenValue(), false);
             if (symbol == null) {
                 return null;
             }
@@ -70,9 +69,8 @@ public class LVal extends Node {
     }
 
     public boolean isConstVar() {
-
         Ident ident = (Ident) components.get(0);
-        Symbol symbol = SymbolManager.getSymbol(ident.getTokenValue());
+        Symbol symbol = SymbolManager.getSymbol(ident.getTokenValue(), false);
         // const int:a;
         if (components.size() == 1) {
             if (symbol == null) {
@@ -98,7 +96,7 @@ public class LVal extends Node {
     // LLVM IR
     public boolean canGetValue() {
         String name = ((Ident) components.get(0)).getTokenValue();
-        ValueSymbol valueSymbol = (ValueSymbol) SymbolManager.getSymbol(name);
+        ValueSymbol valueSymbol = (ValueSymbol) SymbolManager.getSymbol(name, true);
         if (valueSymbol == null) {
             throw new RuntimeException("[ERROR] Symbol not found in LLVM IR");
         }
@@ -112,7 +110,7 @@ public class LVal extends Node {
 
     public int getValue() {
         String name = ((Ident) components.get(0)).getTokenValue();
-        ValueSymbol valueSymbol = (ValueSymbol) SymbolManager.getSymbol(name);
+        ValueSymbol valueSymbol = (ValueSymbol) SymbolManager.getSymbol(name, true);
         if (valueSymbol == null) {
             throw new RuntimeException("[ERROR] Symbol not found in LLVM IR");
         }

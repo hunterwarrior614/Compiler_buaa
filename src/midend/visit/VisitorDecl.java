@@ -45,7 +45,7 @@ public class VisitorDecl {
     }
 
     private static void visitConstDef(ConstDef constDef) {
-        ValueSymbol valueSymbol = (ValueSymbol) SymbolManager.getSymbol(constDef.getIdentName());
+        ValueSymbol valueSymbol = (ValueSymbol) SymbolManager.getSymbol(constDef.getIdentName(), false);
         if (valueSymbol == null) {
             throw new RuntimeException("[ERROR] Symbol not found in LLVM IR");
         }
@@ -64,7 +64,7 @@ public class VisitorDecl {
     }
 
     private static void visitVarDef(VarDef varDef) {
-        ValueSymbol valueSymbol = (ValueSymbol) SymbolManager.getSymbol(varDef.getIdentName());
+        ValueSymbol valueSymbol = (ValueSymbol) SymbolManager.getSymbol(varDef.getIdentName(), false);
         if (valueSymbol == null) {
             throw new RuntimeException("[ERROR] Symbol not found in LLVM IR");
         }
@@ -165,11 +165,11 @@ public class VisitorDecl {
     }
 
     private static String getIrGlobalVarName(ValueSymbol valueSymbol) {
-        SymbolType symbolType = valueSymbol.getType();
-        if (symbolType.equals(SymbolType.STATIC_INT) || symbolType.equals(SymbolType.STATIC_INT_ARRAY)) {
-            return IrBuilder.getCurrentIrBasicBlock().getFuncName() + "." + valueSymbol.getName();
-        } else {
+        if (SymbolManager.isGlobal()) {
             return "@" + valueSymbol.getName();
+        } else {
+            // static int/int_array
+            return IrBuilder.getCurrentIrBasicBlock().getFuncName() + "." + IrBuilder.getStaticVarName(valueSymbol.getName());
         }
     }
 }

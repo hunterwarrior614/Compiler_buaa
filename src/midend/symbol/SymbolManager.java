@@ -21,12 +21,12 @@ public class SymbolManager {
         currentSymbolTable.addSymbol(symbol);
     }
 
-    public static Symbol getSymbol(String name) {
+    public static Symbol getSymbol(String name, boolean needIrValue) {
         SymbolTable symbolTable = currentSymbolTable;
         while (symbolTable != null) {
             // 在当前作用域符号表内查询是否有符号记录，有则返回其信息
             Symbol symbol = symbolTable.getSymbol(name);
-            if (symbol != null) {
+            if (symbol != null && (!needIrValue || symbol.getIrValue() != null)) {
                 return symbol;
             }
             // 否则，利用当前作用域符号表的 `fatherTable` 引用，访问外层作用域符号表
