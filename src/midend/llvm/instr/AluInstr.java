@@ -1,6 +1,5 @@
 package midend.llvm.instr;
 
-import backend.mips.MipsBuilder;
 import backend.mips.Register;
 import backend.mips.assembly.text.MipsAlu;
 import backend.mips.assembly.text.MipsMdu;

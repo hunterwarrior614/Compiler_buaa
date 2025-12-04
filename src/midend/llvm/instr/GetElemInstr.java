@@ -2,7 +2,6 @@ package midend.llvm.instr;
 
 import backend.mips.Register;
 import backend.mips.assembly.text.MipsAlu;
-import backend.mips.assembly.text.MipsLsu;
 import midend.llvm.IrBuilder;
 import midend.llvm.constant.IrConstInt;
 import midend.llvm.type.IrBaseType;

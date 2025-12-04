@@ -59,8 +59,8 @@ public class CallInstr extends IrInstr {
         super.toMips(); // 生成注释
         /*
         对于函数调用者，主要有以下几个步骤：
-        1. 保存现场
-        2. 参数传递
+        1. 保存现场 （保存在调用者栈中）
+        2. 参数传递 （保存在被调用者栈中）
         3. 函数跳转
         4. 恢复现场
          */
@@ -96,16 +96,17 @@ public class CallInstr extends IrInstr {
     private void passParams() {
         // 对于 MIPS，可以将前四个参数通过 $a0 - $a3 四个寄存器传递，但仍需要为其在栈中预留位置
         ArrayList<IrValue> params = getParams();
+        int currentStackOffset = MipsBuilder.getCurrentStackOffset();
         for (int i = 0; i < params.size(); i++) {
             if (i < 3) {
                 Register paramRegister = Register.getRegister(Register.A0.ordinal() + i);
                 loadIrValue2Register(params.get(i), paramRegister);
-                // MipsBuilder.allocateStackSpace(4);  // 在栈中预留位置
+                currentStackOffset -= 4;
             } else {
                 // 其余的参数压入栈
                 loadIrValue2Register(params.get(i), Register.K0);
-                new MipsLsu(MipsLsu.LsuType.SW, Register.K0, Register.SP, MipsBuilder.getCurrentStackOffset() - 4);
-                // MipsBuilder.allocateStackSpace(4);
+                new MipsLsu(MipsLsu.LsuType.SW, Register.K0, Register.SP, currentStackOffset - 4);
+                currentStackOffset -= 4;
             }
         }
 

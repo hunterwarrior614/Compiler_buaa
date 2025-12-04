@@ -12,7 +12,6 @@ public class MipsCompare extends MipsAssembly {
         SGE,    // >=
         SEQ,    // ==
         SNE,    // !=
-        // TODO:SLTI
         ;
 
         @Override

@@ -11,7 +11,6 @@ public class MipsAsciiz extends MipsDataAssembly {
 
     @Override
     public String toString() {
-        // TODO:content.replace("\n", "\\n") ?
         return name + ": .asciiz \"" + content + "\"";
     }
 }

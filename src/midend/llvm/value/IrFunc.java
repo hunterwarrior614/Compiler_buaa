@@ -88,8 +88,7 @@ public class IrFunc extends IrValue {
             if (i < 3) {
                 MipsBuilder.mapIrParameter2Register(parameters.get(i), Register.getRegister(Register.A0.ordinal() + i));
             }
-            // TODO:要在栈上分配空间？
-            // MipsBuilder.allocateStackSpaceForIrValue(parameters.get(i));
+            MipsBuilder.allocateStackSpaceForIrValue(parameters.get(i));    // 要在栈上分配空间
         }
 
         for (IrBasicBlock bb : basicBlocks) {

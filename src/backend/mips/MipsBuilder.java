@@ -2,7 +2,6 @@ package backend.mips;
 
 import backend.mips.assembly.MipsAssembly;
 import backend.mips.assembly.data.MipsDataAssembly;
-import backend.mips.assembly.text.MipsAlu;
 import midend.llvm.value.IrFunc;
 import midend.llvm.value.IrParameter;
 import midend.llvm.value.IrValue;
