@@ -72,6 +72,10 @@ public class MipsBuilder {
         stackOffset -= offset;
     }
 
+    public static void releaseStackSpace(int offset) {
+        stackOffset += offset;
+    }
+
     public static int getCurrentStackOffset() {
         return stackOffset;
     }

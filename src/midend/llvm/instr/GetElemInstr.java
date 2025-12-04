@@ -68,13 +68,13 @@ public class GetElemInstr extends IrInstr {
 
         // 如果索引是常数，则直接获取地址偏移（4*index）
         if (index instanceof IrConstInt irConstInt) {
-            new MipsAlu(MipsAlu.AluType.ADDI, addrResultRegister, baseRegister, 4 * Integer.parseInt(irConstInt.getName()));
+            new MipsAlu(MipsAlu.AluType.ADDIU, addrResultRegister, baseRegister, 4 * Integer.parseInt(irConstInt.getName()));
         }
         // 如果索引是变量，则需要将变量通过移位指令获取地址偏移
         else {
             loadIrValue2Register(index, indexRegister);   // 加载索引
             new MipsAlu(MipsAlu.AluType.SLL, indexRegister, indexRegister, 2);    // 获取地址偏移
-            new MipsAlu(MipsAlu.AluType.ADD, addrResultRegister, baseRegister, indexRegister);
+            new MipsAlu(MipsAlu.AluType.ADDU, addrResultRegister, baseRegister, indexRegister);
         }
 
         storeRegister2IrValue(addrResultRegister, this);

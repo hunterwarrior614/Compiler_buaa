@@ -111,7 +111,7 @@ public class CallInstr extends IrInstr {
         }
 
         // 计算出新的 $sp（整个函数只在此处移动一次栈）
-        new MipsAlu(MipsAlu.AluType.ADDI, Register.SP, Register.SP, MipsBuilder.getCurrentStackOffset());
+        new MipsAlu(MipsAlu.AluType.ADDIU, Register.SP, Register.SP, MipsBuilder.getCurrentStackOffset());
     }
 
     // 函数跳转
@@ -132,6 +132,7 @@ public class CallInstr extends IrInstr {
             registerCount++;
             new MipsLsu(MipsLsu.LsuType.LW, allocatedRegisters.get(i), Register.SP, currentStackOffset + 4 + registerCount * 4);
         }
-        // TODO:释放栈？    MipsBuilder.allocateStackSpace(-(4 * registerCount + 8));
+        // TODO:释放栈？
+        MipsBuilder.releaseStackSpace(8 + registerCount * 4);
     }
 }

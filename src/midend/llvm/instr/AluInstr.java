@@ -65,8 +65,8 @@ public class AluInstr extends IrInstr {
         loadIrValue2Register(rValue, rRegister);
 
         switch (aluType) {
-            case ADD -> new MipsAlu(MipsAlu.AluType.ADD, resultRegister, lRegister, rRegister);
-            case SUB -> new MipsAlu(MipsAlu.AluType.SUB, resultRegister, lRegister, rRegister);
+            case ADD -> new MipsAlu(MipsAlu.AluType.ADDU, resultRegister, lRegister, rRegister);
+            case SUB -> new MipsAlu(MipsAlu.AluType.SUBU, resultRegister, lRegister, rRegister);
             case MUL -> {
                 new MipsMdu(MipsMdu.MduType.MULT, lRegister, rRegister);    // 计算
                 new MipsMdu(MipsMdu.MduType.MFLO, resultRegister);   // 取值

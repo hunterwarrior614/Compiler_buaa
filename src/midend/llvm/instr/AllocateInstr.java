@@ -38,11 +38,11 @@ public class AllocateInstr extends IrInstr {
         Register register = MipsBuilder.getRegisterOfIrValue(this); // TODO:this一定没有register？
         // 如果该指针分配了寄存器，则直接将地址赋给该寄存器
         if (register != null) {
-            new MipsAlu(MipsAlu.AluType.ADDI, register, Register.SP, pointerOffset);
+            new MipsAlu(MipsAlu.AluType.ADDIU, register, Register.SP, pointerOffset);
         }
         // 否则，将该指针保存到栈中
         else {
-            new MipsAlu(MipsAlu.AluType.ADDI, Register.K0, Register.SP, pointerOffset); // 先获取地址
+            new MipsAlu(MipsAlu.AluType.ADDIU, Register.K0, Register.SP, pointerOffset); // 先获取地址
             int pointerAddr = MipsBuilder.allocateStackSpaceForIrValue(this); // 为指针分配栈空间
             new MipsLsu(MipsLsu.LsuType.SW, Register.K0, Register.SP, pointerAddr); // 保存指针
         }
