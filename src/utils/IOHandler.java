@@ -1,5 +1,7 @@
 package utils;
 
+import backend.BackEnd;
+import backend.mips.MipsModule;
 import frontend.FrontEnd;
 import error.Error;
 import error.ErrorRecorder;
@@ -21,8 +23,9 @@ public class IOHandler {
     private static FileOutputStream lexerOutput = null;
     private static FileOutputStream parserOutput = null;
     private static FileOutputStream symbolOutput = null;
-    private static FileOutputStream llvmIrOutput = null;
     private static FileOutputStream errorOutput = null;
+    private static FileOutputStream llvmIrOutput = null;
+    private static FileOutputStream mipsOutput = null;
 
     public static void initialize() throws FileNotFoundException {
         input = new PushbackInputStream(new FileInputStream("testfile.txt"), 16);
@@ -31,6 +34,7 @@ public class IOHandler {
         symbolOutput = new FileOutputStream("symbol.txt");
         errorOutput = new FileOutputStream("error.txt");
         llvmIrOutput = new FileOutputStream("llvm_ir.txt");
+        mipsOutput = new FileOutputStream("mips.txt");
     }
 
     public static PushbackInputStream getInput() {
@@ -42,47 +46,48 @@ public class IOHandler {
             IOHandler.printError(stage);
         } else {
             switch (stage) {
-                case 1:
-                    IOHandler.printTokenList(); // 输出词法分析
-                    break;
-                case 2:
-                    IOHandler.printAstTree();   // 输出语法分析
-                    break;
-                case 3:
-                    IOHandler.printSymbolTable();   // 输出语义分析
-                    break;
-                case 4:
-                    IOHandler.printLlvmIr();
+                case 1 -> IOHandler.printTokenList(); // 输出词法分析
+                case 2 -> IOHandler.printAstTree();   // 输出语法分析
+                case 3 -> IOHandler.printSymbolTable();   // 输出语义分析
+                case 4 -> IOHandler.printLlvmIr();
+                case 5 -> IOHandler.printMips();
             }
         }
     }
 
-    public static void printTokenList() throws IOException {
+    private static void printTokenList() throws IOException {
         for (Token token : FrontEnd.getTokenList()) {
             lexerOutput.write((token + "\n").getBytes());
         }
         System.out.println("lexer.txt 输出完毕");
     }
 
-    public static void printAstTree() throws IOException {
+    private static void printAstTree() throws IOException {
         Node astTree = FrontEnd.getAstTree();
         parserOutput.write(astTree.toString().getBytes());
         System.out.println("parser.txt 输出完毕");
     }
 
-    public static void printSymbolTable() throws IOException {
+    private static void printSymbolTable() throws IOException {
         SymbolTable symbolTable = MidEnd.getSymbolTable();
         symbolOutput.write(symbolTable.toString().getBytes());
         System.out.println("symbol.txt 输出完毕");
     }
 
-    public static void printLlvmIr() throws IOException {
+    private static void printLlvmIr() throws IOException {
         IrModule irModule = MidEnd.getIrModule();
         llvmIrOutput.write(irModule.toString().getBytes());
         System.out.println("llvm_ir.txt 输出完毕");
     }
 
-    public static void printError(int stage) throws IOException {
+    private static void printMips() throws IOException {
+        MipsModule mipsModule = BackEnd.getMipsModule();
+        mipsOutput.write(mipsModule.toString().getBytes());
+        System.out.println("mips.txt 输出完毕");
+    }
+
+
+    private static void printError(int stage) throws IOException {
         ArrayList<Error> errors = filterErrors(ErrorRecorder.getErrors(), stage);
         for (Error error : errors) {
             errorOutput.write((error + "\n").getBytes());

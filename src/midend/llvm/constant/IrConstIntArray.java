@@ -1,5 +1,6 @@
 package midend.llvm.constant;
 
+import backend.mips.assembly.data.MipsWord;
 import midend.llvm.type.IrBaseType;
 import midend.llvm.type.IrValueType;
 
@@ -7,8 +8,8 @@ import java.util.ArrayList;
 import java.util.stream.Collectors;
 
 public class IrConstIntArray extends IrConst {
-    private final ArrayList<IrConstInt> valueList;
-    private final int arrayLength;
+    private final ArrayList<IrConstInt> valueList;  // 提供初值的列表
+    private final int arrayLength;  // 数组实际的长度
 
     public IrConstIntArray(ArrayList<IrConstInt> valueList, int arrayLength) {
         super(IrValueType.CONST_DATA,
@@ -39,5 +40,14 @@ public class IrConstIntArray extends IrConst {
         }
 
         return sb.toString();
+    }
+
+    @Override
+    public void toMips(String label) {
+        ArrayList<Integer> valueList = new ArrayList<>();
+        for (IrConstInt irConstInt : this.valueList) {
+            valueList.add(Integer.parseInt(irConstInt.getName()));
+        }
+        new MipsWord(label, valueList, arrayLength);
     }
 }

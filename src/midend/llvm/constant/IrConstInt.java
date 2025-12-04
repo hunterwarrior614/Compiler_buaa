@@ -1,5 +1,6 @@
 package midend.llvm.constant;
 
+import backend.mips.assembly.data.MipsWord;
 import midend.llvm.type.IrBaseType;
 import midend.llvm.type.IrValueType;
 
@@ -12,5 +13,11 @@ public class IrConstInt extends IrConst {
     @Override
     public String toString() {
         return "i32 " + name;
+    }
+
+    // Mips
+    @Override
+    public void toMips(String label) {
+        new MipsWord(label, Integer.parseInt(name));
     }
 }

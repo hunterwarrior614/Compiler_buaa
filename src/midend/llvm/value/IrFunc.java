@@ -1,5 +1,8 @@
 package midend.llvm.value;
 
+import backend.mips.MipsBuilder;
+import backend.mips.Register;
+import backend.mips.assembly.MipsLabel;
 import midend.llvm.IrBuilder;
 import midend.llvm.instr.JumpInstr;
 import midend.llvm.instr.ReturnInstr;
@@ -7,16 +10,19 @@ import midend.llvm.type.IrValueType;
 import midend.llvm.type.IrBaseType;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.stream.Collectors;
 
 public class IrFunc extends IrValue {
     private final ArrayList<IrParameter> parameters;
     private final ArrayList<IrBasicBlock> basicBlocks;
+    private final HashMap<IrValue, Register> ValueRegisterMap;  // value-register 分配表
 
     public IrFunc(String name, IrBaseType returnType) {
         super(IrValueType.FUNCTION, returnType, name);
         parameters = new ArrayList<>();
         basicBlocks = new ArrayList<>();
+        ValueRegisterMap = new HashMap<>();
     }
 
 
@@ -70,5 +76,28 @@ public class IrFunc extends IrValue {
         sb.append(basicBlocks.stream().map(IrBasicBlock::toString).collect(Collectors.joining("\n")));
         sb.append("\n}");
         return sb.toString();
+    }
+
+    // Mips
+    public void toMips() {
+        new MipsLabel(getOriginName(), MipsLabel.LabelType.FUNC_NAME); // 函数标签
+        MipsBuilder.setCurrentFunction(this);
+
+        for (int i = 0; i < parameters.size(); i++) {
+            // 将前四个形参映射到 $a0-$a3（这里只需要完成映射就行，无需为irParameter分配空间）
+            if (i < 3) {
+                MipsBuilder.mapIrParameter2Register(parameters.get(i), Register.getRegister(Register.A0.ordinal() + i));
+            }
+            // TODO:要在栈上分配空间？
+            // MipsBuilder.allocateStackSpaceForIrValue(parameters.get(i));
+        }
+
+        for (IrBasicBlock bb : basicBlocks) {
+            bb.toMips();
+        }
+    }
+
+    public HashMap<IrValue, Register> getValueRegisterMap() {
+        return ValueRegisterMap;
     }
 }

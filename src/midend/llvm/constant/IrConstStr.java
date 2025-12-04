@@ -1,5 +1,6 @@
 package midend.llvm.constant;
 
+import backend.mips.assembly.data.MipsAsciiz;
 import midend.llvm.type.IrBaseType;
 import midend.llvm.type.IrValueType;
 
@@ -35,5 +36,10 @@ public class IrConstStr extends IrConst {
         sb.append(content.replaceAll("\\\\n", "\\\\0A"));    // "\\\\n"经转义后得到"\\n"，再经转义匹配字符串中"\n"
         sb.append("\\00\"");
         return sb.toString();
+    }
+
+    @Override
+    public void toMips() {
+        new MipsAsciiz(this.getOriginName(), content);
     }
 }

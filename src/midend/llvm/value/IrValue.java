@@ -25,4 +25,9 @@ public abstract class IrValue {
     public IrBaseType.TypeValue getIrBaseTypeValue() {
         return irBaseType.getTypeValue();
     }
+
+    // Mips
+    public String getOriginName() {
+        return name.substring(1);
+    }
 }

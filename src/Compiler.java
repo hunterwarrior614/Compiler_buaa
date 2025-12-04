@@ -1,3 +1,4 @@
+import backend.BackEnd;
 import frontend.FrontEnd;
 import midend.MidEnd;
 import utils.IOHandler;
@@ -15,7 +16,9 @@ public class Compiler {
         MidEnd.generateSymbolTable();   // 语义分析
         MidEnd.generateLlvmIr();        // LLVM IR 中间代码生成
 
-        int stage = 4;  // 词法(1)，语法(2)，语义(3)
+        BackEnd.generateMips();         // Mips 目标代码生成
+
+        int stage = 5;  // 词法(1)，语法(2)，语义(3)
         IOHandler.print(stage);
     }
 }

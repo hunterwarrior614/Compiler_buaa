@@ -1,5 +1,7 @@
 package midend.llvm.instr;
 
+import backend.mips.Register;
+import backend.mips.assembly.text.MipsCompare;
 import midend.llvm.IrBuilder;
 import midend.llvm.type.IrBaseType;
 import midend.llvm.type.IrValueType;
@@ -58,5 +60,32 @@ public class CompareInstr extends IrInstr {
         sb.append(lValue.getIrBaseTypeValue().equals(IrBaseType.TypeValue.INT1) ? "i1 " : "i32 ")
                 .append(getLValue().getName()).append(", ").append(getRValue().getName());
         return sb.toString();
+    }
+
+    // Mips
+    public void toMips() {
+        super.toMips(); // 生成注释
+
+        IrValue lValue = getLValue();
+        IrValue rValue = getRValue();
+
+        Register lRegister = getRegisterOrK0ForIrValue(lValue);
+        Register rRegister = getRegisterOrK1ForIrValue(rValue);
+        Register resultRegister = getRegisterOrK0ForIrValue(this);
+
+        loadIrValue2Register(lValue, lRegister);
+        loadIrValue2Register(rValue, rRegister);
+
+        switch (compType) {
+            // slt $t1, $t2, $t3
+            case EQ -> new MipsCompare(MipsCompare.CompareType.SEQ, resultRegister, lRegister, rRegister);
+            case NE -> new MipsCompare(MipsCompare.CompareType.SNE, resultRegister, lRegister, rRegister);
+            case SLE -> new MipsCompare(MipsCompare.CompareType.SLE, resultRegister, lRegister, rRegister);
+            case SGE -> new MipsCompare(MipsCompare.CompareType.SGE, resultRegister, lRegister, rRegister);
+            case SGT -> new MipsCompare(MipsCompare.CompareType.SGT, resultRegister, lRegister, rRegister);
+            case SLT -> new MipsCompare(MipsCompare.CompareType.SLT, resultRegister, lRegister, rRegister);
+        }
+
+        storeRegister2IrValue(resultRegister, this);
     }
 }

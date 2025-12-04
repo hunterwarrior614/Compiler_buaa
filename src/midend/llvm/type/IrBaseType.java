@@ -58,6 +58,10 @@ public class IrBaseType {
         return typeValue;
     }
 
+    public int getLength() {
+        return length;
+    }
+
     @Override
     public String toString() {
         return switch (this.typeValue) {

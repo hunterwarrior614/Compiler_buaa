@@ -16,4 +16,14 @@ public class IrGlobalVariable extends IrUser {
     public String toString() {
         return name + " = dso_local global " + globalVariable;
     }
+
+    // Mips
+    public void toMips() {
+        globalVariable.toMips(getOriginName());
+    }
+
+    @Override
+    public String getOriginName() {
+        return "." + super.getOriginName();
+    }
 }

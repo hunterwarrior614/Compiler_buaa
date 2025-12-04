@@ -105,7 +105,7 @@ public class VisitorStmt {
                 i++;
             }
             // TODO:%%要处理吗？
-            // 转义字符（尽可能为\n）
+            // 转义字符（仅可能为\n）
             else if (formatString.charAt(i) == '\\') {
                 sb.append("\\n");
                 i++;

@@ -1,5 +1,7 @@
 package midend.llvm.instr;
 
+import backend.mips.Register;
+import backend.mips.assembly.text.MipsLsu;
 import midend.llvm.type.IrBaseType;
 import midend.llvm.type.IrValueType;
 import midend.llvm.value.IrValue;
@@ -28,5 +30,23 @@ public class StoreInstr extends IrInstr {
         sb.append(getValue().getIrBaseType()).append(" ").append(getValue().getName()).append(", ");
         sb.append(getAddress().getIrBaseType()).append(" ").append(getAddress().getName());
         return sb.toString();
+    }
+
+    // Mips
+    public void toMips() {
+        super.toMips(); // 生成注释
+        /*
+        sw $t1, -100($t2)
+         */
+        IrValue value = getValue();
+        IrValue address = getAddress();
+        // 为address和要存的value各分配一个寄存器
+        Register valueRegister = getRegisterOrK0ForIrValue(value);
+        Register addressRegister = getRegisterOrK1ForIrValue(address);
+        // 将address和value加载到寄存器中
+        loadIrValue2Register(value, valueRegister);
+        loadIrValue2Register(address, addressRegister);
+
+        new MipsLsu(MipsLsu.LsuType.SW, valueRegister, addressRegister, 0);
     }
 }

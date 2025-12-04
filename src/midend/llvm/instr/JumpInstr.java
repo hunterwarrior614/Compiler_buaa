@@ -1,5 +1,6 @@
 package midend.llvm.instr;
 
+import backend.mips.assembly.text.MipsJump;
 import midend.llvm.type.IrBaseType;
 import midend.llvm.type.IrValueType;
 import midend.llvm.value.IrBasicBlock;
@@ -17,5 +18,12 @@ public class JumpInstr extends IrInstr {
     @Override
     public String toString() {
         return "br label %" + getJumpBlock().getName();
+    }
+
+    // Mips
+    public void toMips() {
+        super.toMips();
+
+        new MipsJump(MipsJump.JumpType.J, getJumpBlock().getName());
     }
 }
