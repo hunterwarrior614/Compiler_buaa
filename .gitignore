@@ -6,3 +6,4 @@ out/
 META-INF/
 out.ll
 libsysy
+config.json
