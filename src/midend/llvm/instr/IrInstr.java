@@ -13,19 +13,29 @@ import midend.llvm.type.IrBaseType;
 import midend.llvm.type.IrValueType;
 import midend.llvm.value.IrBasicBlock;
 import midend.llvm.value.IrGlobalVariable;
-import midend.llvm.value.IrUser;
+import midend.llvm.use.IrUser;
 import midend.llvm.value.IrValue;
 
 public class IrInstr extends IrUser {
     protected IrBasicBlock irBasicBlock;
 
     public IrInstr(IrValueType irValueType, IrBaseType irBaseType, String name) {
+        this(irValueType, irBaseType, name, true);
+    }
+
+    public IrInstr(IrValueType irValueType, IrBaseType irBaseType, String name, boolean addToBuilder) {
         super(irValueType, irBaseType, name);
-        IrBuilder.addInstr(this);   // 每创建一个指令，就要加入当前BasicBlock
+        if (addToBuilder) {
+            IrBuilder.addInstr(this);
+        }
     }
 
     public void setIrBasicBlock(IrBasicBlock irBasicBlock) {
         this.irBasicBlock = irBasicBlock;
+    }
+
+    public IrBasicBlock getIrBasicBlock() {
+        return irBasicBlock;
     }
 
     // Mips

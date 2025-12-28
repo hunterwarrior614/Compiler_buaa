@@ -1,6 +1,5 @@
 package midend.llvm.instr;
 
-
 import backend.mips.Register;
 import backend.mips.assembly.text.MipsLsu;
 import midend.llvm.IrBuilder;
@@ -10,9 +9,9 @@ import midend.llvm.value.IrValue;
 public class LoadInstr extends IrInstr {
     public LoadInstr(IrValue address) {
         super(IrValueType.LOAD_INSTR,
-                address.getIrBaseType().getPointValueType(),   // 返回值类型为指针类型对应的值类型
+                address.getIrBaseType().getPointValueType(), // 返回值类型为指针类型对应的值类型
                 IrBuilder.getLocalVarName());
-        usees.add(address);
+        addUsee(address);
     }
 
     private IrValue getAddress() {
@@ -35,7 +34,7 @@ public class LoadInstr extends IrInstr {
     public void toMips() {
         super.toMips(); // 生成注释
         /*
-        lw $t1, -100($t2)
+         * lw $t1, -100($t2)
          */
         IrValue address = getAddress();
         // 为address和加载值各分配一个寄存器

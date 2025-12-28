@@ -10,7 +10,7 @@ import midend.llvm.value.IrValue;
 public class PrintIntInstr extends IOInstr {
     public PrintIntInstr(IrValue printValue) {
         super(IrValueType.OUTPUT_INSTR, new IrBaseType(IrBaseType.TypeValue.VOID), "");
-        usees.add(printValue);
+        addUsee(printValue);
     }
 
     public static String getDeclare() {
@@ -30,9 +30,9 @@ public class PrintIntInstr extends IOInstr {
     public void toMips() {
         super.toMips(); // 生成注释
         /*
-        move $a0, $t0
-        li $v0, 1
-        syscall
+         * move $a0, $t0
+         * li $v0, 1
+         * syscall
          */
         IrValue printValue = getPrintValue();
         loadIrValue2Register(printValue, Register.A0); // 将打印值移到 $a0

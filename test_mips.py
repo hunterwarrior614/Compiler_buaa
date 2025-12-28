@@ -3,6 +3,8 @@ import shutil
 import subprocess
 import difflib
 import time
+import signal
+import threading
 
 class MIPSTester:
     def __init__(self):
@@ -18,10 +20,13 @@ class MIPSTester:
 
         # 测试结果统计
         self.results = {
-            'A': {'total': 0, 'passed': 0, 'failed': 0},
-            'B': {'total': 0, 'passed': 0, 'failed': 0},
-            'C': {'total': 0, 'passed': 0, 'failed': 0}
+            'A': {'total': 0, 'passed': 0, 'failed': 0, 'timeout': 0},
+            'B': {'total': 0, 'passed': 0, 'failed': 0, 'timeout': 0},
+            'C': {'total': 0, 'passed': 0, 'failed': 0, 'timeout': 0}
         }
+
+        # 全局超时标志
+        self.timeout_occurred = False
 
     def check_jar_exists(self):
         """检查编译器和MARS JAR包是否存在"""
@@ -43,7 +48,7 @@ class MIPSTester:
                 cwd=self.compiler_dir,
                 capture_output=True,
                 text=True,
-                timeout=10  # 10秒超时
+                timeout=3  # 编译器超时3秒
             )
 
             # 检查编译器是否成功生成MIPS代码
@@ -70,9 +75,6 @@ class MIPSTester:
                 return False, ""
 
             # 构建MARS命令
-            # nc: 无版权信息显示
-            # a: 禁止汇编器警告
-            # sm: 自修改代码支持
             mars_cmd = ['java', '-jar', self.mars_jar, 'nc', self.mips_file]
 
             if input_file and os.path.exists(input_file):
@@ -83,7 +85,7 @@ class MIPSTester:
                         stdin=f_in,
                         capture_output=True,
                         text=True,
-                        timeout=10  # 10秒超时
+                        timeout=3  # MARS运行超时3秒
                     )
             else:
                 # 没有输入文件
@@ -91,7 +93,7 @@ class MIPSTester:
                     mars_cmd,
                     capture_output=True,
                     text=True,
-                    timeout=10
+                    timeout=3
                 )
 
             # 检查MARS是否成功运行
@@ -174,8 +176,41 @@ class MIPSTester:
 
         print("=" * 60)
 
-    def run_testcase(self, category, testcase_folder):
-        """运行单个测试用例"""
+    def run_testcase_with_timeout(self, category, testcase_folder, timeout=5):
+        """运行单个测试用例，带有总时间限制"""
+        def _run():
+            return self._run_testcase_internal(category, testcase_folder)
+
+        # 创建线程运行测试
+        result = [None]
+        def target():
+            result[0] = _run()
+
+        thread = threading.Thread(target=target)
+        thread.start()
+        thread.join(timeout)
+
+        if thread.is_alive():
+            # 超时发生
+            print(f" ⏰ 测试超时（超过{timeout}秒），强制结束")
+            # 尝试终止可能的子进程
+            self.force_terminate_processes()
+            return False
+
+        return result[0]
+
+    def force_terminate_processes(self):
+        """强制终止可能的Java进程"""
+        try:
+            if os.name == 'nt':  # Windows
+                os.system('taskkill /F /IM java.exe 2>nul 1>nul')
+            else:  # Linux/Mac
+                os.system('pkill -9 java 2>/dev/null')
+        except:
+            pass
+
+    def _run_testcase_internal(self, category, testcase_folder):
+        """运行单个测试用例的内部实现"""
         testcase_path = os.path.join(self.test_base, category, testcase_folder)
         source_file = os.path.join(testcase_path, "testfile.txt")
         input_file = os.path.join(testcase_path, "in.txt")
@@ -224,6 +259,10 @@ class MIPSTester:
             self.show_diff(actual_clean, expected_clean, f"{category}/{testcase_folder}")
             return False
 
+    def run_testcase(self, category, testcase_folder):
+        """运行单个测试用例（外部接口）"""
+        return self.run_testcase_with_timeout(category, testcase_folder, timeout=5)
+
     def run_all_tests(self):
         """运行所有测试"""
         print("🚀 开始测试编译器MIPS代码生成...")
@@ -234,6 +273,7 @@ class MIPSTester:
             return
 
         print("✅ 所有JAR包存在，开始测试...\n")
+        print(f"📌 每个测试样例限制在5秒内完成\n")
 
         # 遍历所有测试类别
         for category in ['A', 'B', 'C']:
@@ -253,10 +293,24 @@ class MIPSTester:
             for testcase in testcases:
                 print(f"测试用例: {testcase}")
                 self.results[category]['total'] += 1
-                if self.run_testcase(category, testcase):
+
+                # 记录开始时间
+                start_time = time.time()
+                result = self.run_testcase(category, testcase)
+                elapsed_time = time.time() - start_time
+
+                # 检查是否超时
+                if elapsed_time > 5:
+                    print(f"   实际用时: {elapsed_time:.2f}秒 (超时)")
+                    self.results[category]['timeout'] += 1
+                    self.results[category]['failed'] += 1
+                elif result:
+                    print(f"   实际用时: {elapsed_time:.2f}秒")
                     self.results[category]['passed'] += 1
                 else:
+                    print(f"   实际用时: {elapsed_time:.2f}秒")
                     self.results[category]['failed'] += 1
+
                 print("-" * 30)
 
         self.print_summary()
@@ -270,36 +324,42 @@ class MIPSTester:
         total_all = 0
         passed_all = 0
         failed_all = 0
+        timeout_all = 0
 
         for category in ['A', 'B', 'C']:
             stats = self.results[category]
             total = stats['total']
             passed = stats['passed']
             failed = stats['failed']
+            timeout = stats['timeout']
 
             total_all += total
             passed_all += passed
             failed_all += failed
+            timeout_all += timeout
 
             if total > 0:
                 rate = (passed / total) * 100
-                print(f"{category:6} | 通过: {passed:2d} | 失败: {failed:2d} | 总计: {total:2d} | 通过率: {rate:6.2f}%")
+                print(f"{category:6} | 通过: {passed:2d} | 失败: {failed:2d} | 超时: {timeout:2d} | 总计: {total:2d} | 通过率: {rate:6.2f}%")
             else:
                 print(f"{category:6} | 无测试用例")
 
         if total_all > 0:
             overall_rate = (passed_all / total_all) * 100
             print("-" * 60)
-            print(f"总计   | 通过: {passed_all:2d} | 失败: {failed_all:2d} | 总计: {total_all:2d} | 通过率: {overall_rate:6.2f}%")
+            print(f"总计   | 通过: {passed_all:2d} | 失败: {failed_all:2d} | 超时: {timeout_all:2d} | 总计: {total_all:2d} | 通过率: {overall_rate:6.2f}%")
 
         print("=" * 60)
 
         # 给出建议
-        if failed_all > 0:
+        if failed_all > 0 or timeout_all > 0:
             print("\n💡 建议:")
-            print("1. 检查失败的测试用例，查看差异输出")
-            print("2. 调试MIPS代码，可以使用MARS单步执行")
-            print("3. 确保编译器正确处理了所有语法结构")
+            if timeout_all > 0:
+                print("1. 检查超时的测试用例，可能是死循环或性能问题")
+            if failed_all - timeout_all > 0:
+                print("2. 检查失败的测试用例，查看差异输出")
+            print("3. 调试MIPS代码，可以使用MARS单步执行")
+            print("4. 确保编译器正确处理了所有语法结构")
 
 def main():
     # 检查必要目录是否存在

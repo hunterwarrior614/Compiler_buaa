@@ -40,6 +40,10 @@ public class IrModule {
         functions.add(irFunc);
     }
 
+    public ArrayList<IrFunc> getIrFuncs() {
+        return functions;
+    }
+
     public void addGlobalVariable(IrGlobalVariable irGlobalVariable) {
         globalVariables.add(irGlobalVariable);
     }

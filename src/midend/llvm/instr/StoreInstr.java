@@ -9,15 +9,15 @@ import midend.llvm.value.IrValue;
 public class StoreInstr extends IrInstr {
     public StoreInstr(IrValue value, IrValue address) {
         super(IrValueType.STORE_INSTR, new IrBaseType(IrBaseType.TypeValue.VOID), "store");
-        this.addUsee(value);
-        this.addUsee(address);
+        addUsee(value);
+        addUsee(address);
     }
 
-    private IrValue getValue() {
+    public IrValue getValue() {
         return usees.get(0);
     }
 
-    private IrValue getAddress() {
+    public IrValue getAddress() {
         return usees.get(1);
     }
 
@@ -36,7 +36,7 @@ public class StoreInstr extends IrInstr {
     public void toMips() {
         super.toMips(); // 生成注释
         /*
-        sw $t1, -100($t2)
+         * sw $t1, -100($t2)
          */
         IrValue value = getValue();
         IrValue address = getAddress();

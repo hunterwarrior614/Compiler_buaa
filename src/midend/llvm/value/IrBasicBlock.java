@@ -1,8 +1,12 @@
 package midend.llvm.value;
 
 import backend.mips.assembly.MipsLabel;
+import midend.llvm.IrBuilder;
+import midend.llvm.instr.BranchInstr;
 import midend.llvm.instr.IrInstr;
+import midend.llvm.instr.JumpInstr;
 import midend.llvm.instr.ReturnInstr;
+import midend.llvm.instr.phi.ParallelCopyInstr;
 import midend.llvm.type.IrBaseType;
 import midend.llvm.type.IrValueType;
 
@@ -13,14 +17,105 @@ public class IrBasicBlock extends IrValue {
     private final IrFunc irFunc;
     private final ArrayList<IrInstr> instrs;
 
+    // CFG
+    private final ArrayList<IrBasicBlock> nextBlocks;
+    private final ArrayList<IrBasicBlock> beforeBlocks;
+
+    // 支配树
+    private final ArrayList<IrBasicBlock> dominatorBlocks; // 支配该结点的结点集合
+    private IrBasicBlock immediateDominator; // 直接支配该结点的结点
+    private final ArrayList<IrBasicBlock> dominateFrontiers; // 支配边界
+    private final ArrayList<IrBasicBlock> immediateDominatedBlocks; // 被该结点直接支配的结点集合
+
     public IrBasicBlock(String name, IrFunc irFunc) {
         super(IrValueType.BASIC_BLOCK, new IrBaseType(IrBaseType.TypeValue.VOID), name);
         this.irFunc = irFunc;
         instrs = new ArrayList<>();
+
+        nextBlocks = new ArrayList<>();
+        beforeBlocks = new ArrayList<>();
+
+        dominatorBlocks = new ArrayList<>();
+        immediateDominator = null;
+        dominateFrontiers = new ArrayList<>();
+        immediateDominatedBlocks = new ArrayList<>();
     }
 
     public void addInstr(IrInstr instr) {
         instrs.add(instr);
+    }
+
+    public void addInstrFirst(IrInstr instr) {
+        instrs.add(0, instr);
+    }
+
+    public ArrayList<IrInstr> getInstrs() {
+        return instrs;
+    }
+
+    public IrInstr getLastInstr() {
+        return instrs.get(instrs.size() - 1);
+    }
+
+    // CFG Methods
+    public void addNextBlock(IrBasicBlock block) {
+        if (!nextBlocks.contains(block)) {
+            nextBlocks.add(block);
+        }
+    }
+
+    public void addBeforeBlock(IrBasicBlock block) {
+        if (!beforeBlocks.contains(block)) {
+            beforeBlocks.add(block);
+        }
+    }
+
+    public ArrayList<IrBasicBlock> getNextBlocks() {
+        return nextBlocks;
+    }
+
+    public ArrayList<IrBasicBlock> getBeforeBlocks() {
+        return beforeBlocks;
+    }
+
+    public void clearCfg() {
+        nextBlocks.clear();
+        beforeBlocks.clear();
+
+        dominatorBlocks.clear();
+        immediateDominator = null;
+        dominateFrontiers.clear();
+        immediateDominatedBlocks.clear();
+    }
+
+    // Dominator Methods
+    public void addDominator(IrBasicBlock block) {
+        dominatorBlocks.add(block);
+    }
+
+    public ArrayList<IrBasicBlock> getDominatorBlocks() {
+        return dominatorBlocks;
+    }
+
+    public void setImmediateDominator(IrBasicBlock block) {
+        this.immediateDominator = block;
+        block.immediateDominatedBlocks.add(this);
+    }
+
+    public IrBasicBlock getImmediateDominator() {
+        return immediateDominator;
+    }
+
+    public void addDominateFrontier(IrBasicBlock block) {
+        dominateFrontiers.add(block);
+    }
+
+    public ArrayList<IrBasicBlock> getDominateFrontiers() {
+        return dominateFrontiers;
+    }
+
+    public ArrayList<IrBasicBlock> getImmediateDominatedBlocks() {
+        return immediateDominatedBlocks;
     }
 
     public boolean lastInstrIsReturn() {
@@ -30,8 +125,64 @@ public class IrBasicBlock extends IrValue {
         return instrs.get(instrs.size() - 1) instanceof ReturnInstr;
     }
 
+    public IrFunc getIrFunc() {
+        return irFunc;
+    }
+
+    public void addInstrBeforeJump(IrInstr instr) {
+        IrInstr lastInstr = this.getLastInstr();
+        if (lastInstr instanceof JumpInstr || lastInstr instanceof BranchInstr) {
+            this.instrs.add(this.instrs.size() - 1, instr);
+        } else {
+            this.instrs.add(instr);
+        }
+        instr.setIrBasicBlock(this);
+    }
+
+    public static IrBasicBlock addMiddleBlock(IrBasicBlock beforeBlock, IrBasicBlock nextBlock) {
+        IrBasicBlock middleBlock = IrBuilder.createIrBasicBlock(beforeBlock.getIrFunc(), nextBlock);
+        // 修改跳转关系
+        if (beforeBlock.getLastInstr() instanceof JumpInstr jumpInstr) {
+            jumpInstr.setJumpTarget(middleBlock);
+        } else if (beforeBlock.getLastInstr() instanceof BranchInstr branchInstr) {
+            if (branchInstr.getTrueBlock() == nextBlock) {
+                branchInstr.setTrueBlock(middleBlock);
+            } else if (branchInstr.getFalseBlock() == nextBlock) {
+                branchInstr.setFalseBlock(middleBlock);
+            }
+        }
+        // 给中间块创建跳转关系
+        middleBlock.addInstr(new JumpInstr(nextBlock, middleBlock));
+
+        // 修改原先的流图信息，但是没有重建控制流！
+        beforeBlock.nextBlocks.set(beforeBlock.nextBlocks.indexOf(nextBlock), middleBlock);
+        nextBlock.beforeBlocks.set(nextBlock.beforeBlocks.indexOf(beforeBlock), middleBlock);
+        middleBlock.beforeBlocks.add(beforeBlock);
+        middleBlock.nextBlocks.add(nextBlock);
+
+        return middleBlock;
+    }
+
     public boolean isEmpty() {
         return instrs.isEmpty();
+    }
+
+    public boolean haveParallelCopyInstr() {
+        for (IrInstr instr : instrs) {
+            if (instr instanceof ParallelCopyInstr) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public ParallelCopyInstr getAndRemoveParallelCopyInstr() {
+        for (int i = 0; i < instrs.size(); i++) {
+            if (instrs.get(i) instanceof ParallelCopyInstr) {
+                return (ParallelCopyInstr) instrs.remove(i);
+            }
+        }
+        return null;
     }
 
     public String getFuncName() {

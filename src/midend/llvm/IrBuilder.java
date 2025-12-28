@@ -46,10 +46,18 @@ public class IrBuilder {
     }
 
     public static IrBasicBlock createIrBasicBlock() {
-        IrBasicBlock irBasicBlock = new IrBasicBlock("b_" + basicBlockCount++, currentIrFunc);
+        IrBasicBlock irBasicBlock = new IrBasicBlock(getBasicBlockName(), currentIrFunc);
         currentIrFunc.addBasicBlock(irBasicBlock);
 
         return irBasicBlock;
+    }
+
+    public static IrBasicBlock createIrBasicBlock(IrFunc irFunc,IrBasicBlock nextBlock) {
+        IrBasicBlock basicBlock = new IrBasicBlock(getBasicBlockName(), irFunc);
+        // 添加到当前的处理中
+        irFunc.addBasicBlock(basicBlock, nextBlock);
+
+        return basicBlock;
     }
 
     public static void setCurrentIrBasicBlock(IrBasicBlock irBasicBlock) {
@@ -72,6 +80,10 @@ public class IrBuilder {
         irModule.addGlobalVariable(irGlobalVariable);
 
         return irGlobalVariable;
+    }
+
+    private static String getBasicBlockName() {
+        return "b_" + basicBlockCount++;
     }
 
     // 虚拟寄存器

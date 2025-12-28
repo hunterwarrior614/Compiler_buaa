@@ -17,8 +17,7 @@ public class CallInstr extends IrInstr {
     public CallInstr(IrFunc func, ArrayList<IrValue> params) {
         super(IrValueType.CALL_INSTR, new IrBaseType(func.getIrBaseTypeValue()),
                 // 若是 void 函数，直接调用（call ...），否则要有变量接收（%n = call ...）
-                func.getIrBaseTypeValue().equals(IrBaseType.TypeValue.VOID) ? "call" : IrBuilder.getLocalVarName()
-        );
+                func.getIrBaseTypeValue().equals(IrBaseType.TypeValue.VOID) ? "call" : IrBuilder.getLocalVarName());
         addUsee(func);
         params.forEach(this::addUsee);
     }
@@ -58,17 +57,17 @@ public class CallInstr extends IrInstr {
     public void toMips() {
         super.toMips(); // 生成注释
         /*
-        对于函数调用者，主要有以下几个步骤：
-        1. 保存现场 （保存在调用者栈中）
-        2. 参数传递 （保存在被调用者栈中）
-        3. 函数跳转
-        4. 恢复现场
+         * 对于函数调用者，主要有以下几个步骤：
+         * 1. 保存现场 （保存在调用者栈中）
+         * 2. 参数传递 （保存在被调用者栈中）
+         * 3. 函数跳转
+         * 4. 恢复现场
          */
-        ArrayList<Register> allocatedRegisters = MipsBuilder.getCurrentAllocatedRegisters();    // 现场信息
+        ArrayList<Register> allocatedRegisters = MipsBuilder.getCurrentAllocatedRegisters(); // 现场信息
 
-        saveContext(allocatedRegisters);    // 保存现场
-        passParams();   // 参数传递
-        jumpToFunction();   // 函数跳转
+        saveContext(allocatedRegisters); // 保存现场
+        passParams(); // 参数传递
+        jumpToFunction(); // 函数跳转
         recoverContext(allocatedRegisters);
 
         // 处理返回值
@@ -130,7 +129,8 @@ public class CallInstr extends IrInstr {
         int registerCount = 0;
         for (int i = allocatedRegisters.size() - 1; i >= 0; i--) {
             registerCount++;
-            new MipsLsu(MipsLsu.LsuType.LW, allocatedRegisters.get(i), Register.SP, currentStackOffset + 4 + registerCount * 4);
+            new MipsLsu(MipsLsu.LsuType.LW, allocatedRegisters.get(i), Register.SP,
+                    currentStackOffset + 4 + registerCount * 4);
         }
         // TODO:释放栈？
         MipsBuilder.releaseStackSpace(8 + registerCount * 4);

@@ -8,7 +8,20 @@ import midend.llvm.value.IrBasicBlock;
 public class JumpInstr extends IrInstr {
     public JumpInstr(IrBasicBlock jumpBlock) {
         super(IrValueType.JUMP_INSTR, new IrBaseType(IrBaseType.TypeValue.VOID), "jump");
-        usees.add(jumpBlock);
+        addUsee(jumpBlock);
+    }
+
+    public JumpInstr(IrBasicBlock jumpBlock, IrBasicBlock createBlock) {
+        super(IrValueType.JUMP_INSTR, new IrBaseType(IrBaseType.TypeValue.VOID), "jump", false);
+        addUsee(jumpBlock);
+        setIrBasicBlock(createBlock);
+    }
+
+    public void setJumpTarget(IrBasicBlock jumpBlock) {
+        // 删除原先的使用关系
+        this.getJumpBlock().deleteUser(this);
+        this.usees.clear();
+        this.addUsee(jumpBlock);
     }
 
     public IrBasicBlock getJumpBlock() {

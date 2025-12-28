@@ -5,27 +5,40 @@ import backend.mips.assembly.text.MipsBranch;
 import backend.mips.assembly.text.MipsJump;
 import midend.llvm.type.IrBaseType;
 import midend.llvm.type.IrValueType;
+import midend.llvm.use.IrUse;
 import midend.llvm.value.IrBasicBlock;
 import midend.llvm.value.IrValue;
 
 public class BranchInstr extends IrInstr {
     public BranchInstr(IrValue cond, IrBasicBlock trueBlock, IrBasicBlock falseBlock) {
         super(IrValueType.BRANCH_INSTR, new IrBaseType(IrBaseType.TypeValue.VOID), "branch");
-        usees.add(cond);
-        usees.add(trueBlock);
-        usees.add(falseBlock);
+        addUsee(cond);
+        addUsee(trueBlock);
+        addUsee(falseBlock);
     }
 
-    private IrValue getCond() {
+    public IrValue getCond() {
         return usees.get(0);
     }
 
-    private IrValue getTrueBlock() {
-        return usees.get(1);
+    public void setTrueBlock(IrBasicBlock trueBlock) {
+        getTrueBlock().deleteUser(this);
+        usees.set(1, trueBlock);
+        trueBlock.addUse(new IrUse(this, trueBlock));
     }
 
-    private IrValue getFalseBlock() {
-        return usees.get(2);
+    public void setFalseBlock(IrBasicBlock falseBlock) {
+        getFalseBlock().deleteUser(this);
+        usees.set(2, falseBlock);
+        falseBlock.addUse(new IrUse(this, falseBlock));
+    }
+
+    public IrBasicBlock getTrueBlock() {
+        return (IrBasicBlock) usees.get(1);
+    }
+
+    public IrBasicBlock getFalseBlock() {
+        return (IrBasicBlock) usees.get(2);
     }
 
     @Override
@@ -41,8 +54,8 @@ public class BranchInstr extends IrInstr {
     public void toMips() {
         super.toMips(); // 生成注释
         /*
-        bne $t1,$zero,label1    -> 条件为真，跳转到 label1
-        j label2                -> 否则跳转到 label2
+         * bne $t1,$zero,label1 -> 条件为真，跳转到 label1
+         * j label2 -> 否则跳转到 label2
          */
         // 使用bne指令判断是否跳转到trueBlock：
         IrValue cond = getCond();

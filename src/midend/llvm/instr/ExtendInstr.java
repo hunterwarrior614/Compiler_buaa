@@ -10,7 +10,7 @@ public class ExtendInstr extends IrInstr {
 
     public ExtendInstr(IrValue originValue, IrBaseType targetType) {
         super(IrValueType.EXTEND_INSTR, targetType, IrBuilder.getLocalVarName());
-        usees.add(originValue);
+        addUsee(originValue);
     }
 
     private IrValue getOriginValue() {

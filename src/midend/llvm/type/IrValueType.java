@@ -22,4 +22,8 @@ public enum IrValueType {
     JUMP_INSTR,
     GETELEM_INSTR,
     EXTEND_INSTR,
+
+    PHI_INSTR,
+    PCOPY_INSTR,
+    MOVE_INSTR,
 }

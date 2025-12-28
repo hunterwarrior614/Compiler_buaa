@@ -42,6 +42,15 @@ public class IrFunc extends IrValue {
         basicBlocks.add(irBasicBlock);
     }
 
+    public void addBasicBlock(IrBasicBlock basicBlock,IrBasicBlock nextBlock) {
+        int index = basicBlocks.indexOf(nextBlock);
+        basicBlocks.add(index, basicBlock);
+    }
+
+    public ArrayList<IrBasicBlock> getBasicBlocks() {
+        return basicBlocks;
+    }
+
     public void addParameter(IrParameter irParameter) {
         parameters.add(irParameter);
     }

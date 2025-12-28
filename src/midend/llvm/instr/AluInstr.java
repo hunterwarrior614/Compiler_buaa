@@ -29,8 +29,8 @@ public class AluInstr extends IrInstr {
     public AluInstr(String aluOp, IrValue lValue, IrValue rValue) {
         super(IrValueType.ALU_INSTR, new IrBaseType(IrBaseType.TypeValue.INT32), IrBuilder.getLocalVarName());
         this.aluType = translateAluType(aluOp);
-        usees.add(lValue);
-        usees.add(rValue);
+        addUsee(lValue);
+        addUsee(rValue);
     }
 
     private AluType translateAluType(String aluOp) {
