@@ -3,6 +3,7 @@ package midend.llvm.instr;
 import backend.mips.Register;
 import backend.mips.assembly.pseudo.MarsLi;
 import backend.mips.assembly.text.MipsAlu;
+import backend.mips.assembly.text.MipsCompare;
 import backend.mips.assembly.text.MipsMdu;
 import midend.llvm.IrBuilder;
 import midend.llvm.constant.IrConstInt;
@@ -10,6 +11,8 @@ import midend.llvm.type.IrBaseType;
 import midend.llvm.type.IrValueType;
 import midend.llvm.value.IrValue;
 import utils.Settings;
+
+import java.math.BigInteger;
 
 public class AluInstr extends IrInstr {
     public enum AluType {
@@ -71,7 +74,9 @@ public class AluInstr extends IrInstr {
             // 如果是乘除指令，则进行乘除法优化
             if (isMduInstr()) {
                 switch (aluType) {
-                    case MUL -> MulOptimize(lValue, rValue, lRegister, rRegister);
+                    case MUL -> optimizeMul(lValue, rValue, lRegister, rRegister);
+                    case SDIV -> optimizeDiv(lValue, rValue, lRegister, rRegister);
+                    case SREM -> optimizeRem(lValue, rValue, lRegister, rRegister);
                     default -> {
                         loadIrValue2Register(lValue, lRegister);
                         loadIrValue2Register(rValue, rRegister);
@@ -137,7 +142,7 @@ public class AluInstr extends IrInstr {
     // 1.如果两个操作数均为常数，则直接计算出结果
     // 2.如果仅有一个操作数为常数，则考虑进行乘法优化
     // 3.若没有常数，则生成原始指令
-    private void MulOptimize(IrValue lValue, IrValue rValue, Register lRegister, Register rRegister) {
+    private void optimizeMul(IrValue lValue, IrValue rValue, Register lRegister, Register rRegister) {
         boolean optimized = false;
         // 如果两个操作数均为常数，则直接计算出结果
         if (lValue instanceof IrConstInt && rValue instanceof IrConstInt) {
@@ -150,10 +155,10 @@ public class AluInstr extends IrInstr {
         // 如果仅有一个操作数为常数，则考虑进行乘法优化
         else if (lValue instanceof IrConstInt irConstInt) {
             loadIrValue2Register(rValue, rRegister);
-            optimized = MulOptimizeByShift(rValue, irConstInt, rRegister, false);
+            optimized = optimizeMulShift(rValue, irConstInt, rRegister, false);
         } else if (rValue instanceof IrConstInt irConstInt) {
             loadIrValue2Register(lValue, lRegister);
-            optimized = MulOptimizeByShift(lValue, irConstInt, lRegister, true);
+            optimized = optimizeMulShift(lValue, irConstInt, lRegister, true);
         }
 
         // 否则，不优化
@@ -172,7 +177,7 @@ public class AluInstr extends IrInstr {
     // 条指令，分数即指令数
     // 3. 1条原始乘指令，分数为 5
     // 取上述三种做法中分数最小的
-    private boolean MulOptimizeByShift(IrValue value, IrConstInt irConstInt, Register registerValue, boolean k0) {
+    private boolean optimizeMulShift(IrValue value, IrConstInt irConstInt, Register registerValue, boolean k0) {
         resultRegister = k0 ? getRegisterOrK1ForIrValue(this) : getRegisterOrK0ForIrValue(this);
         int num = Integer.parseInt(irConstInt.getName());
         if (num == 0) {
@@ -232,5 +237,126 @@ public class AluInstr extends IrInstr {
             new MipsAlu(MipsAlu.AluType.SUBU, resultRegister, Register.ZERO, resultRegister);
         }
         return true;
+    }
+
+    private void optimizeDiv(IrValue lValue, IrValue rValue, Register lRegister, Register rRegister) {
+        // 均为常数
+        if (lValue instanceof IrConstInt && rValue instanceof IrConstInt) {
+            int numL = Integer.parseInt(lValue.getName());
+            int numR = Integer.parseInt(rValue.getName());
+            new MarsLi(resultRegister, numL / numR);
+        }
+        // 右值为常数
+        else if (rValue instanceof IrConstInt) {
+            int num = Integer.parseInt(rValue.getName());
+            if (num == 1) {
+                loadIrValue2Register(lValue, resultRegister);
+            } else if (num == -1) {
+                loadIrValue2Register(lValue, lRegister);
+                new MipsAlu(MipsAlu.AluType.SUBU, resultRegister, Register.ZERO, lRegister);
+            }
+            // 一般情况：转化为除以无符号常数的除法优化
+            else {
+                optimizeDivConst(lValue, num, lRegister, resultRegister);
+            }
+        }
+        // 一般情况
+        else {
+            loadIrValue2Register(lValue, lRegister);
+            loadIrValue2Register(rValue, rRegister);
+            new MipsMdu(MipsMdu.MduType.DIV, lRegister, rRegister);
+            new MipsMdu(MipsMdu.MduType.MFLO, resultRegister);
+        }
+    }
+
+    private void optimizeRem(IrValue lValue, IrValue rValue, Register lRegister, Register rRegister) {
+        // 均为常数
+        if (lValue instanceof IrConstInt && rValue instanceof IrConstInt) {
+            int numL = Integer.parseInt(lValue.getName());
+            int numR = Integer.parseInt(rValue.getName());
+            new MarsLi(resultRegister, numL % numR);
+        }
+        // 右值为常数
+        else if (rValue instanceof IrConstInt) {
+            int num = Integer.parseInt(rValue.getName());
+            // 一般情况：先除优化，再减，总归是优化
+            loadIrValue2Register(lValue, Register.FP);
+            // div中会用到K1
+            optimizeDivConst(lValue, num, lRegister, Register.GP);
+            // 进行乘
+            int shift = getShiftAmount(num);
+            if (shift != -1) {
+                new MipsAlu(MipsAlu.AluType.SLL, Register.GP, Register.GP, shift);
+            }
+            // 没有乘优化
+            else {
+                // 需要手动管理寄存器，不然还是会乱
+                new MarsLi(Register.K0, num);
+                new MipsMdu(MipsMdu.MduType.MULT, Register.GP, Register.K0);
+                new MipsMdu(MipsMdu.MduType.MFLO, Register.GP);
+            }
+            new MipsAlu(MipsAlu.AluType.SUBU, resultRegister, Register.FP, Register.GP);
+        } else {
+            loadIrValue2Register(lValue, lRegister);
+            loadIrValue2Register(rValue, rRegister);
+            new MipsMdu(MipsMdu.MduType.DIV, lRegister, rRegister);
+            new MipsMdu(MipsMdu.MduType.MFHI, resultRegister);
+        }
+    }
+
+    private int getShiftAmount(int num) {
+        for (int i = 1; i < 32; i++) {
+            if (num == 1 << i) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    // dst <- n / d
+    // 这里寄存器分配会乱掉，手动进行一些管理
+    private void optimizeDivConst(IrValue value, long divisor,
+            Register valueRegister, Register resultRegister) {
+        long absDiv = Math.abs(divisor);
+        int l = 32 - Integer.numberOfLeadingZeros((int) (absDiv - 1));
+        int shift = l;
+
+        BigInteger one = BigInteger.ONE;
+        BigInteger divBig = BigInteger.valueOf(absDiv);
+        BigInteger shifted = one.shiftLeft(32 + l);
+        BigInteger low = shifted.divide(divBig);
+        BigInteger high = shifted.add(one.shiftLeft(32 + l - 31)).divide(divBig);
+
+        while (shift > 0 && low.shiftRight(1).compareTo(high.shiftRight(1)) < 0) {
+            low = low.shiftRight(1);
+            high = high.shiftRight(1);
+            shift--;
+        }
+        BigInteger magic = high;
+
+        loadIrValue2Register(value, Register.K1);
+        if (magic.compareTo(BigInteger.ONE.shiftLeft(31)) < 0) {
+            new MarsLi(resultRegister, magic.intValue());
+            new MipsMdu(MipsMdu.MduType.MULT, resultRegister, Register.K1);
+            new MipsMdu(MipsMdu.MduType.MFHI, resultRegister);
+        } else {
+            magic = magic.subtract(BigInteger.ONE.shiftLeft(32));
+
+            new MarsLi(resultRegister, magic.intValue());
+            new MipsMdu(MipsMdu.MduType.MULT, resultRegister, Register.K1);
+            new MipsMdu(MipsMdu.MduType.MFHI, resultRegister);
+            new MipsAlu(MipsAlu.AluType.ADDU, resultRegister, resultRegister, Register.K1);
+        }
+
+        if (shift > 0) {
+            new MipsAlu(MipsAlu.AluType.SRA, resultRegister, resultRegister, shift);
+        }
+
+        new MipsCompare(MipsCompare.CompareType.SLT, Register.K1, Register.K1, Register.ZERO);
+        new MipsAlu(MipsAlu.AluType.ADDU, resultRegister, resultRegister, Register.K1);
+
+        if (divisor < 0) {
+            new MipsAlu(MipsAlu.AluType.SUBU, resultRegister, Register.ZERO, resultRegister);
+        }
     }
 }

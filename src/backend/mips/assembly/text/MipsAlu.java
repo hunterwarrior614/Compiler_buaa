@@ -9,7 +9,7 @@ public class MipsAlu extends MipsAssembly {
         // R 型指令
         ADD, SUB, ADDU, SUBU,
         // 移位指令
-        SLL,
+        SLL, SRA,
         // I 型指令
         ADDI, ADDIU;
 
@@ -27,7 +27,7 @@ public class MipsAlu extends MipsAssembly {
         }
 
         public boolean isInstrShift() {
-            return this == SLL;
+            return this == SLL || this == SRA;
         }
     }
 
@@ -36,7 +36,6 @@ public class MipsAlu extends MipsAssembly {
     private final Register rt;
     private final Register rd;
     private final Integer immediate;
-
 
     // R 型指令
     public MipsAlu(AluType aluType, Register rd, Register rs, Register rt) {
@@ -69,10 +68,8 @@ public class MipsAlu extends MipsAssembly {
     @Override
     public String toString() {
 
-        return immediate == null ?
-                aluType + " " + rd + ", " + rs + ", " + rt : // R型指令：add/sub $t1, $t2, $t3
+        return immediate == null ? aluType + " " + rd + ", " + rs + ", " + rt : // R型指令：add/sub $t1, $t2, $t3
                 aluType + " " + rd + ", " + rs + ", " + immediate; // I 型指令：addi $t1, $t2, -100 或 移位指令：sll $t1, $t2, 2
     }
-
 
 }
