@@ -3,6 +3,7 @@ package midend.llvm.value;
 import backend.mips.MipsBuilder;
 import backend.mips.Register;
 import backend.mips.assembly.MipsLabel;
+import backend.mips.assembly.text.MipsLsu;
 import midend.llvm.IrBuilder;
 import midend.llvm.instr.JumpInstr;
 import midend.llvm.instr.ReturnInstr;
@@ -97,11 +98,12 @@ public class IrFunc extends IrValue {
         MipsBuilder.setCurrentFunction(this);
 
         for (int i = 0; i < parameters.size(); i++) {
-            // 将前三个形参映射到 $a1-$a3（这里只需要完成映射就行，无需为irParameter分配空间）
+            // 为形参在栈上分配空间，并将传入寄存器中的值保存到该空间
+            Integer offset = MipsBuilder.allocateStackSpaceForIrValue(parameters.get(i));
             if (i < 3) {
-                MipsBuilder.mapIrParameter2Register(parameters.get(i), Register.getRegister(Register.A0.ordinal() + i + 1));
+                Register argReg = Register.getRegister(Register.A0.ordinal() + i);
+                new MipsLsu(MipsLsu.LsuType.SW, argReg, Register.SP, offset);
             }
-            MipsBuilder.allocateStackSpaceForIrValue(parameters.get(i));    // 要在栈上分配空间
         }
 
         for (IrBasicBlock bb : basicBlocks) {

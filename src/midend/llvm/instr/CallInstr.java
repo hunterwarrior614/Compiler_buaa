@@ -98,7 +98,7 @@ public class CallInstr extends IrInstr {
         int currentStackOffset = MipsBuilder.getCurrentStackOffset();
         for (int i = 0; i < params.size(); i++) {
             if (i < 3) {
-                Register paramRegister = Register.getRegister(Register.A0.ordinal() + i + 1);
+                Register paramRegister = Register.getRegister(Register.A0.ordinal() + i);
                 loadIrValue2Register(params.get(i), paramRegister);
                 currentStackOffset -= 4;
             } else {
