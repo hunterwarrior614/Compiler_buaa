@@ -2,7 +2,6 @@ import backend.BackEnd;
 import frontend.FrontEnd;
 import midend.MidEnd;
 import optimize.OptimizeManager;
-import optimize.Optimizer;
 import utils.IOHandler;
 import utils.Settings;
 

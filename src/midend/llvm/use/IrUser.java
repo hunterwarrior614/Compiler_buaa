@@ -30,4 +30,13 @@ public class IrUser extends IrValue {
         int index = this.usees.indexOf(oldUsee);
         this.usees.set(index, newUsee);
     }
+
+    public void removeAllUsees() {
+        for (IrValue usee : usees) {
+            if (usee != null) {
+                usee.deleteUser(this);
+            }
+        }
+        usees.clear();
+    }
 }

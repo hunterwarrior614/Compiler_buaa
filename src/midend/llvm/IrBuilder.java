@@ -39,7 +39,7 @@ public class IrBuilder {
         currentIrBasicBlock = createIrBasicBlock();
 
         // 加入计数表中
-        localVarCountMap.put(funcName, -1);
+        localVarCountMap.put(funcName, 0);
         staticVarCountMap.put(funcName, new HashMap<>());
 
         return irFunc;
@@ -52,7 +52,7 @@ public class IrBuilder {
         return irBasicBlock;
     }
 
-    public static IrBasicBlock createIrBasicBlock(IrFunc irFunc,IrBasicBlock nextBlock) {
+    public static IrBasicBlock createIrBasicBlock(IrFunc irFunc, IrBasicBlock nextBlock) {
         IrBasicBlock basicBlock = new IrBasicBlock(getBasicBlockName(), irFunc);
         // 添加到当前的处理中
         irFunc.addBasicBlock(basicBlock, nextBlock);
@@ -88,9 +88,12 @@ public class IrBuilder {
 
     // 虚拟寄存器
     public static String getLocalVarName() {
-        int count = localVarCountMap.get(currentIrFunc.getName());
-        count++;
-        localVarCountMap.put(currentIrFunc.getName(), count);
+        return getLocalVarName(currentIrFunc);
+    }
+
+    public static String getLocalVarName(IrFunc irFunc) {
+        int count = localVarCountMap.get(irFunc.getName());
+        localVarCountMap.put(irFunc.getName(), count + 1);
         return "%var_" + count;
     }
 

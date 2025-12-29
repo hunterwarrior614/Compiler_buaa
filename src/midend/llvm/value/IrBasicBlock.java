@@ -7,6 +7,7 @@ import midend.llvm.instr.IrInstr;
 import midend.llvm.instr.JumpInstr;
 import midend.llvm.instr.ReturnInstr;
 import midend.llvm.instr.phi.ParallelCopyInstr;
+import midend.llvm.instr.phi.PhiInstr;
 import midend.llvm.type.IrBaseType;
 import midend.llvm.type.IrValueType;
 
@@ -68,6 +69,21 @@ public class IrBasicBlock extends IrValue {
         if (!beforeBlocks.contains(block)) {
             beforeBlocks.add(block);
         }
+    }
+
+    public void deleteNextBlock(IrBasicBlock block) {
+        nextBlocks.remove(block);
+        block.beforeBlocks.remove(this);
+    }
+
+    public void replaceNextBlock(IrBasicBlock irBasicBlock) {
+        this.nextBlocks.remove(irBasicBlock);
+        this.nextBlocks.addAll(irBasicBlock.nextBlocks);
+    }
+
+    public void replaceBeforeBlock(IrBasicBlock irBasicBlock) {
+        this.beforeBlocks.remove(irBasicBlock);
+        this.beforeBlocks.addAll(irBasicBlock.beforeBlocks);
     }
 
     public ArrayList<IrBasicBlock> getNextBlocks() {
@@ -189,6 +205,10 @@ public class IrBasicBlock extends IrValue {
         return irFunc.getName();
     }
 
+    public boolean isEntryBlock() {
+        return irFunc.getBasicBlocks().get(0).equals(this);
+    }
+
     @Override
     public String toString() {
         StringBuilder sb = new StringBuilder();
@@ -204,5 +224,33 @@ public class IrBasicBlock extends IrValue {
         for (IrInstr instr : instrs) {
             instr.toMips();
         }
+    }
+
+    public void appendBlock(IrBasicBlock nextBlock) {
+        // 对于原块的尾跳转
+        IrInstr jumpInstr = this.getLastInstr();
+        jumpInstr.removeAllUsees();
+        this.instrs.remove(jumpInstr);
+        // 添加下一个基本快的指令
+        nextBlock.instrs.forEach(this::addInstr);
+        // 修改next信息
+        this.replaceNextBlock(nextBlock);
+        // 修改before信息
+        for (IrBasicBlock nextNextBlock : nextBlock.nextBlocks) {
+            nextNextBlock.replaceBeforeBlock(nextBlock);
+            for (IrInstr instr : nextNextBlock.getInstrs()) {
+                if (instr instanceof PhiInstr phiInstr) {
+                    phiInstr.replaceBlock(nextBlock, this);
+                }
+            }
+        }
+    }
+
+    public void replaceLastInstr(IrInstr instr) {
+        if (!instrs.isEmpty()) {
+            instrs.remove(instrs.size() - 1);
+        }
+        this.addInstr(instr);
+        instr.setIrBasicBlock(this);
     }
 }

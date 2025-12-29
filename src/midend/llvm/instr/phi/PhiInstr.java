@@ -1,5 +1,6 @@
 package midend.llvm.instr.phi;
 
+import midend.llvm.IrBuilder;
 import midend.llvm.instr.IrInstr;
 import midend.llvm.type.IrBaseType;
 import midend.llvm.type.IrValueType;
@@ -13,7 +14,7 @@ public class PhiInstr extends IrInstr {
     private final ArrayList<IrBasicBlock> beforeBlocks;
 
     public PhiInstr(IrBaseType type, IrBasicBlock irBasicBlock) {
-        super(IrValueType.PHI_INSTR, type, "phi", false);
+        super(IrValueType.PHI_INSTR, type, IrBuilder.getLocalVarName(irBasicBlock.getIrFunc()), false);
         setIrBasicBlock(irBasicBlock);
 
         beforeBlocks = new ArrayList<>(irBasicBlock.getBeforeBlocks());
@@ -29,6 +30,32 @@ public class PhiInstr extends IrInstr {
         usees.set(index, value);
         // 添加use关系
         value.addUse(new IrUse(this, value));
+    }
+
+    public void removeBlock(IrBasicBlock block) {
+        int index = beforeBlocks.indexOf(block);
+        if (index != -1) {
+            beforeBlocks.remove(index);
+            IrValue value = usees.get(index);
+            if (value != null) {
+                value.deleteUser(this);
+            }
+            usees.remove(index);
+        }
+    }
+
+    public void replaceBlock(IrBasicBlock oldBlock, IrBasicBlock newBlock) {
+        int index;
+        if (this.beforeBlocks.contains(newBlock)) {
+            index = this.beforeBlocks.indexOf(newBlock);
+            this.beforeBlocks.remove(index);
+            this.usees.remove(index);
+        }
+
+        index = this.beforeBlocks.indexOf(oldBlock);
+        if (index != -1) {
+            this.beforeBlocks.set(index, newBlock);
+        }
     }
 
     @Override

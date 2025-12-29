@@ -22,7 +22,7 @@ public class CallInstr extends IrInstr {
         params.forEach(this::addUsee);
     }
 
-    private IrFunc getFunc() {
+    public IrFunc getFunc() {
         return (IrFunc) usees.get(0);
     }
 
@@ -93,12 +93,12 @@ public class CallInstr extends IrInstr {
 
     // 参数传递
     private void passParams() {
-        // 对于 MIPS，可以将前四个参数通过 $a0 - $a3 四个寄存器传递，但仍需要为其在栈中预留位置
+        // 对于 MIPS，可以将前三个参数通过 $a1 - $a3 四个寄存器传递，但仍需要为其在栈中预留位置
         ArrayList<IrValue> params = getParams();
         int currentStackOffset = MipsBuilder.getCurrentStackOffset();
         for (int i = 0; i < params.size(); i++) {
             if (i < 3) {
-                Register paramRegister = Register.getRegister(Register.A0.ordinal() + i);
+                Register paramRegister = Register.getRegister(Register.A0.ordinal() + i + 1);
                 loadIrValue2Register(params.get(i), paramRegister);
                 currentStackOffset -= 4;
             } else {

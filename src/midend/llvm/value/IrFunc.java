@@ -42,7 +42,7 @@ public class IrFunc extends IrValue {
         basicBlocks.add(irBasicBlock);
     }
 
-    public void addBasicBlock(IrBasicBlock basicBlock,IrBasicBlock nextBlock) {
+    public void addBasicBlock(IrBasicBlock basicBlock, IrBasicBlock nextBlock) {
         int index = basicBlocks.indexOf(nextBlock);
         basicBlocks.add(index, basicBlock);
     }
@@ -72,6 +72,10 @@ public class IrFunc extends IrValue {
         }
     }
 
+    public boolean isMainFunction() {
+        return name.equals("@main");
+    }
+
     @Override
     public String toString() {
         StringBuilder sb = new StringBuilder();
@@ -93,9 +97,9 @@ public class IrFunc extends IrValue {
         MipsBuilder.setCurrentFunction(this);
 
         for (int i = 0; i < parameters.size(); i++) {
-            // 将前四个形参映射到 $a0-$a3（这里只需要完成映射就行，无需为irParameter分配空间）
+            // 将前三个形参映射到 $a1-$a3（这里只需要完成映射就行，无需为irParameter分配空间）
             if (i < 3) {
-                MipsBuilder.mapIrParameter2Register(parameters.get(i), Register.getRegister(Register.A0.ordinal() + i));
+                MipsBuilder.mapIrParameter2Register(parameters.get(i), Register.getRegister(Register.A0.ordinal() + i + 1));
             }
             MipsBuilder.allocateStackSpaceForIrValue(parameters.get(i));    // 要在栈上分配空间
         }

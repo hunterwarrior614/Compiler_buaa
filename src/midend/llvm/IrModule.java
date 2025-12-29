@@ -44,6 +44,15 @@ public class IrModule {
         return functions;
     }
 
+    public IrFunc getMainFunction() {
+        for (IrFunc func : functions) {
+            if (func.isMainFunction()) {
+                return func;
+            }
+        }
+        throw new RuntimeException("[ERROR] No main function found");
+    }
+
     public void addGlobalVariable(IrGlobalVariable irGlobalVariable) {
         globalVariables.add(irGlobalVariable);
     }

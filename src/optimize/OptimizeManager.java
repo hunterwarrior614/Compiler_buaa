@@ -1,7 +1,6 @@
 package optimize;
 
 import midend.MidEnd;
-import midend.llvm.IrModule;
 
 import java.util.ArrayList;
 
@@ -13,8 +12,17 @@ public class OptimizeManager {
 
         optimizerList = new ArrayList<>();
 
+        optimizerList.add(new RemoveUnreachCode());
         optimizerList.add(new CfgBuilder());
+        optimizerList.add(new RemoveDeadCode());
+        optimizerList.add(new CfgBuilder());
+
         optimizerList.add(new MemToReg());
+        optimizerList.add(new CfgBuilder());
+
+        optimizerList.add(new RemoveUnreachCode());
+        optimizerList.add(new CfgBuilder());
+        optimizerList.add(new RemoveDeadCode());
         optimizerList.add(new CfgBuilder());
 
         optimizerList.add(new RemovePhi());
