@@ -2,6 +2,7 @@ package midend.llvm.instr;
 
 import backend.mips.Register;
 import backend.mips.assembly.pseudo.MarsLi;
+import backend.mips.assembly.pseudo.MarsMove;
 import backend.mips.assembly.text.MipsAlu;
 import backend.mips.assembly.text.MipsCompare;
 import backend.mips.assembly.text.MipsMdu;
@@ -185,9 +186,11 @@ public class AluInstr extends IrInstr {
             return true;
         } else if (num == 1) {
             loadIrValue2Register(value, resultRegister);
+            return true;
         } else if (num == -1) {
             loadIrValue2Register(value, resultRegister);
             new MipsAlu(MipsAlu.AluType.SUBU, resultRegister, Register.ZERO, resultRegister);
+            return true;
         }
         boolean negative = num < 0;
         num = Math.abs(num); // 常数先调为正值
@@ -217,6 +220,11 @@ public class AluInstr extends IrInstr {
 
         if (Math.min(score1, score2) > score3) {
             return false;
+        }
+
+        if (resultRegister == registerValue) {
+            new MarsMove(Register.K0, registerValue);
+            registerValue = Register.K0;
         }
 
         if (score1 <= score2) {

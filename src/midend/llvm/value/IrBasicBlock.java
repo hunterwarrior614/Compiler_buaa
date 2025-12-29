@@ -12,6 +12,7 @@ import midend.llvm.type.IrBaseType;
 import midend.llvm.type.IrValueType;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.stream.Collectors;
 
 public class IrBasicBlock extends IrValue {
@@ -27,6 +28,12 @@ public class IrBasicBlock extends IrValue {
     private IrBasicBlock immediateDominator; // 直接支配该结点的结点
     private final ArrayList<IrBasicBlock> dominateFrontiers; // 支配边界
     private final ArrayList<IrBasicBlock> immediateDominatedBlocks; // 被该结点直接支配的结点集合
+
+    // 描述活跃变量分析的数据结构
+    private HashSet<IrValue> inValueSet = new HashSet<>();
+    private HashSet<IrValue> outValueSet = new HashSet<>();
+    private HashSet<IrValue> defValueSet = new HashSet<>();
+    private HashSet<IrValue> useValueSet = new HashSet<>();
 
     public IrBasicBlock(String name, IrFunc irFunc) {
         super(IrValueType.BASIC_BLOCK, new IrBaseType(IrBaseType.TypeValue.VOID), name);
@@ -252,5 +259,36 @@ public class IrBasicBlock extends IrValue {
         }
         this.addInstr(instr);
         instr.setIrBasicBlock(this);
+    }
+
+    public void clearActiveInfo() {
+        inValueSet.clear();
+        outValueSet.clear();
+        defValueSet.clear();
+        useValueSet.clear();
+    }
+
+    public HashSet<IrValue> getInValueSet() {
+        return inValueSet;
+    }
+
+    public void setInValueSet(HashSet<IrValue> inValueSet) {
+        this.inValueSet = inValueSet;
+    }
+
+    public HashSet<IrValue> getOutValueSet() {
+        return outValueSet;
+    }
+
+    public void setOutValueSet(HashSet<IrValue> outValueSet) {
+        this.outValueSet = outValueSet;
+    }
+
+    public HashSet<IrValue> getDefValueSet() {
+        return defValueSet;
+    }
+
+    public HashSet<IrValue> getUseValueSet() {
+        return useValueSet;
     }
 }

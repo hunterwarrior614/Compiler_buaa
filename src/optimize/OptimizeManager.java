@@ -26,6 +26,10 @@ public class OptimizeManager {
         optimizerList.add(new CfgBuilder());
 
         optimizerList.add(new RemovePhi());
+//        optimizerList.add(new CfgBuilder());
+//
+//        optimizerList.add(new ActiveAnalysis());
+//        optimizerList.add(new AllocateRegister());
     }
 
     public static void Optimize() {

@@ -14,7 +14,7 @@ public class IrBaseType {
 
     private final TypeValue typeValue;
     private final int length;
-    private final IrBaseType pointValueType;   // 指针指向的值类型
+    private final IrBaseType pointValueType; // 指针指向的值类型
 
     public IrBaseType(TypeValue typeValue) {
         this.typeValue = typeValue;
@@ -52,6 +52,10 @@ public class IrBaseType {
             throw new RuntimeException("[ERROR] typeValue is null");
         }
         return pointValueType.typeValue;
+    }
+
+    public boolean isVoid() {
+        return typeValue == TypeValue.VOID;
     }
 
     public TypeValue getTypeValue() {
