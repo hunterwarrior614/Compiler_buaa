@@ -30,6 +30,14 @@ public class MipsLsu extends MipsAssembly {
         this.offset = offset;
     }
 
+    public boolean isStoreType() {
+        return this.type == LsuType.SW;
+    }
+
+    public String getTarget() {
+        return offset + "(" + base + ")";
+    }
+
     @Override
     public String toString() {
         // lw $t1, -100($t2)

@@ -22,6 +22,10 @@ public class MipsModule {
         textSegment.add(assembly);
     }
 
+    public ArrayList<MipsAssembly> getTextSegment() {
+        return textSegment;
+    }
+
     @Override
     public String toString() {
         StringBuilder sb = new StringBuilder();
