@@ -1,6 +1,5 @@
 package optimize;
 
-import midend.llvm.constant.IrConst;
 import midend.llvm.instr.*;
 import midend.llvm.instr.io.IOInstr;
 import midend.llvm.instr.phi.PhiInstr;
@@ -28,13 +27,11 @@ public class RemoveDeadCode extends Optimizer {
     public void Optimize() {
         boolean finished = false;
         while (!finished) {
-            finished = true;
             this.BuildFunctionCallMap();
-            finished &= this.RemoveUselessFunction();
+            finished = this.RemoveUselessFunction();
             finished &= this.RemoveUselessBlock();
             finished &= this.RemoveUselessCode();
             finished &= this.RemoveUselessPhi();
-            // finished &= this.RemoveDeadBranch();
             finished &= this.MergeBlock();
         }
     }
@@ -205,56 +202,6 @@ public class RemoveDeadCode extends Optimizer {
                         phiInstr.removeAllUsees();
                         iterator.remove();
                     }
-                }
-            }
-        }
-
-        return finished;
-    }
-
-    private boolean RemoveDeadBranch() {
-        boolean finished = true;
-
-        for (IrFunc irFunction : irModule.getIrFuncs()) {
-            for (IrBasicBlock irBasicBlock : irFunction.getBasicBlocks()) {
-                // 删除无用jump后直接获取最后一条
-                IrInstr instr = irBasicBlock.getLastInstr();
-                if (!(instr instanceof BranchInstr branchInstr)) {
-                    continue;
-                }
-                IrValue cond = branchInstr.getCond();
-                IrBasicBlock trueBlock = branchInstr.getTrueBlock();
-                IrBasicBlock falseBlock = branchInstr.getFalseBlock();
-
-                if (cond instanceof IrConst) {
-                    int condValue = Integer.parseInt(cond.getName());
-                    JumpInstr jumpInstr;
-                    // 为真
-                    if (condValue != 0) {
-                        jumpInstr = new JumpInstr(trueBlock, irBasicBlock);
-                        // 更改before-next关系
-                        irBasicBlock.deleteNextBlock(falseBlock);
-                        // 消除phi
-                        for (IrInstr nextInstr : falseBlock.getInstrs()) {
-                            if (nextInstr instanceof PhiInstr phiInstr) {
-                                phiInstr.removeBlock(irBasicBlock);
-                            }
-                        }
-                    }
-                    // 为假
-                    else {
-                        jumpInstr = new JumpInstr(falseBlock, irBasicBlock);
-                        // 更改before-next关系
-                        irBasicBlock.deleteNextBlock(trueBlock);
-                        // 消除phi
-                        for (IrInstr nextInstr : trueBlock.getInstrs()) {
-                            if (nextInstr instanceof PhiInstr phiInstr) {
-                                phiInstr.removeBlock(irBasicBlock);
-                            }
-                        }
-                    }
-                    irBasicBlock.replaceLastInstr(jumpInstr);
-                    finished = false;
                 }
             }
         }

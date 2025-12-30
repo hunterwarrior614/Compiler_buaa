@@ -53,10 +53,9 @@ public class InsertPhi {
             }
             // store关系为define关系
             else if (userInstr instanceof StoreInstr storeInstr) {
-//                if (storeInstr.getAddress() == this.allocateInstr) {
-//                    this.addDefineInstr(userInstr);
-//                }
-                this.addDefineInstr(userInstr);
+                if (storeInstr.getAddress() == this.allocateInstr) {
+                    this.addDefineInstr(userInstr);
+                }
             }
         }
     }
@@ -151,8 +150,8 @@ public class InsertPhi {
 
     private void convertPhiValue(IrBasicBlock visitBlock) {
         for (IrBasicBlock nextBlock : visitBlock.getNextBlocks()) {
-//            if (nextBlock.getInstrs().isEmpty())
-//                continue;
+            if (nextBlock.getInstrs().isEmpty())
+                continue;
             IrInstr firstInstr = nextBlock.getInstrs().get(0);
             if (firstInstr instanceof PhiInstr phiInstr && useInstrs.contains(firstInstr)) {
                 phiInstr.ConvertBlockToValue(peekValueStack(), visitBlock);

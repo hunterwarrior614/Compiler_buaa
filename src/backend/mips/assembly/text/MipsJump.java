@@ -47,7 +47,15 @@ public class MipsJump extends MipsAssembly {
     public String toString() {
         return switch (jumpType) {
             case J, JAL -> jumpType + " " + targetLabel; // jal/j target
-            case JR -> jumpType + " " + rd;    // jr $t1
+            case JR -> jumpType + " " + rd; // jr $t1
         };
+    }
+
+    public JumpType getJumpType() {
+        return jumpType;
+    }
+
+    public String getTargetLabel() {
+        return targetLabel;
     }
 }

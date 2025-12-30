@@ -19,4 +19,12 @@ public class MipsLabel extends MipsAssembly {
     public String toString() {
         return (type == LabelType.FUNC_NAME ? "" : "\t") + label + ":";
     }
+
+    public String getLabel() {
+        return label;
+    }
+
+    public LabelType getType() {
+        return type;
+    }
 }

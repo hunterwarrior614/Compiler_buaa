@@ -14,13 +14,11 @@ import java.util.HashSet;
 import java.util.Set;
 
 public class RegisterAllocator {
-    private final IrFunc irFunction;
     private final ArrayList<Register> registerSet;
     private final HashMap<Register, IrValue> registerValueMap;
     private final HashMap<IrValue, Register> valueRegisterMap;
 
     public RegisterAllocator(IrFunc irFunction) {
-        this.irFunction = irFunction;
         this.registerValueMap = new HashMap<>();
         this.valueRegisterMap = irFunction.getValueRegisterMap();
         this.registerSet = Register.getUsAbleRegisters();
@@ -101,11 +99,6 @@ public class RegisterAllocator {
             for (IrInstr instr : nextBlock.getInstrs()) {
                 if (instr instanceof MoveInstr moveInstr && moveInstr.getSrcValue() == value) {
                     return true;
-                }
-                // MoveInstr通常在block开头，如果遇到非Move/Phi指令，可以提前停止（取决于RemovePhi实现）
-                // 这里为了安全遍历所有指令，或者直到遇到非Move指令
-                if (!(instr instanceof MoveInstr) && !(instr instanceof PhiInstr)) {
-                    // break; // 暂时不break，以防万一
                 }
             }
         }

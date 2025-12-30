@@ -34,8 +34,16 @@ public class MipsLsu extends MipsAssembly {
         return this.type == LsuType.SW;
     }
 
+    public boolean isLoadType() {
+        return this.type == LsuType.LW;
+    }
+
     public String getTarget() {
         return offset + "(" + base + ")";
+    }
+
+    public Register getRd() {
+        return rd;
     }
 
     @Override

@@ -59,12 +59,8 @@ public class RemoveUnreachCode extends Optimizer {
         visited.add(block);
         // 一定是跳转
         IrInstr instr = block.getLastInstr();
-        // return
-        if (instr instanceof ReturnInstr) {
-            return;
-        }
         // jump
-        else if (instr instanceof JumpInstr jumpInstr) {
+        if (instr instanceof JumpInstr jumpInstr) {
             IrBasicBlock targetBlock = jumpInstr.getJumpBlock();
             DfsBlock(targetBlock, visited);
         }

@@ -101,8 +101,7 @@ public class ActiveAnalysis extends Optimizer {
                         newOutValueSet.addAll(nextBlock.getInValueSet());
                     }
                     // in：
-                    HashSet<IrValue> newInValueSet = new HashSet<>();
-                    newInValueSet.addAll(newOutValueSet);
+                    HashSet<IrValue> newInValueSet = new HashSet<>(newOutValueSet);
                     newInValueSet.removeAll(analysisBlock.getDefValueSet());
                     newInValueSet.addAll(analysisBlock.getUseValueSet());
 

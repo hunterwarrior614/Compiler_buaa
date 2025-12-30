@@ -12,8 +12,8 @@ public class MemToReg extends Optimizer {
     @Override
     public void Optimize() {
         for (IrFunc irFunction : irModule.getIrFuncs()) {
-//            if (irFunction.getBasicBlocks().isEmpty())
-//                continue;
+            if (irFunction.getBasicBlocks().isEmpty())
+                continue;
             IrBasicBlock entryBlock = irFunction.getBasicBlocks().get(0);
             for (IrBasicBlock irBasicBlock : irFunction.getBasicBlocks()) {
                 ArrayList<IrInstr> instrList = new ArrayList<>(irBasicBlock.getInstrs());
