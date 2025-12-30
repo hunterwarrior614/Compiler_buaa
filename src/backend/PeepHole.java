@@ -5,6 +5,8 @@ import backend.mips.assembly.MipsAssembly;
 import backend.mips.assembly.MipsLabel;
 import backend.mips.assembly.text.MipsJump;
 import backend.mips.assembly.text.MipsLsu;
+import backend.mips.assembly.text.MipsAlu;
+import backend.mips.Register;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -23,6 +25,7 @@ public class PeepHole {
         while (!finished) {
             finished = removeContinuousStores();
             finished &= removeJumpToNextLabel();
+            finished &= flattenJumpChains();
             finished &= removeLoadAfterStoreSameReg();
             finished &= removeDuplicateConsecutiveLoads();
         }
@@ -48,6 +51,43 @@ public class PeepHole {
         }
 
         textSegment.removeAll(removeSet);
+        return finished;
+    }
+
+    private boolean flattenJumpChains() {
+        boolean finished = true;
+
+        // map label name to its index in the text segment
+        HashMap<String, Integer> labelIndex = new HashMap<>();
+        for (int i = 0; i < textSegment.size(); i++) {
+            MipsAssembly assembly = textSegment.get(i);
+            if (assembly instanceof MipsLabel label) {
+                labelIndex.put(label.getLabel(), i);
+            }
+        }
+
+        // find chains: j L1 where L1 immediately contains another unconditional j L2
+        for (int i = 0; i < textSegment.size(); i++) {
+            MipsAssembly assembly = textSegment.get(i);
+            if (assembly instanceof MipsJump jump && jump.getJumpType() == MipsJump.JumpType.J) {
+                String target = jump.getTargetLabel();
+                Integer targetIdx = labelIndex.get(target);
+                if (targetIdx != null) {
+                    int nextIdx = targetIdx + 1;
+                    if (nextIdx < textSegment.size()) {
+                        MipsAssembly nextAssembly = textSegment.get(nextIdx);
+                        if (nextAssembly instanceof MipsJump targetJump
+                                && targetJump.getJumpType() == MipsJump.JumpType.J
+                                && targetJump.getTargetLabel() != null) {
+                            // redirect to final target
+                            textSegment.set(i, new MipsJump(MipsJump.JumpType.J, targetJump.getTargetLabel()));
+                            finished = false;
+                        }
+                    }
+                }
+            }
+        }
+
         return finished;
     }
 
@@ -90,10 +130,17 @@ public class PeepHole {
 
             if (current instanceof MipsLsu currentLsu && currentLsu.isLoadType()) {
                 if (previous instanceof MipsLsu previousLsu && previousLsu.isStoreType()) {
-                    if (currentLsu.getTarget().equals(previousLsu.getTarget())
-                            && currentLsu.getRd() == previousLsu.getRd()) {
-                        removeSet.add(current);
-                        finished = false;
+                    if (currentLsu.getTarget().equals(previousLsu.getTarget())) {
+                        if (currentLsu.getRd() == previousLsu.getRd()) {
+                            removeSet.add(current);
+                            finished = false;
+                        } else {
+                            // replace load with move from stored register to load dest
+                            textSegment.set(i, new MipsAlu(
+                                    MipsAlu.AluType.ADDU,
+                                    currentLsu.getRd(), previousLsu.getRd(), Register.ZERO));
+                            finished = false;
+                        }
                     }
                 }
             }
@@ -116,6 +163,12 @@ public class PeepHole {
                     if (currentLsu.getTarget().equals(previousLsu.getTarget())
                             && currentLsu.getRd() == previousLsu.getRd()) {
                         removeSet.add(current);
+                        finished = false;
+                    } else if (currentLsu.getTarget().equals(previousLsu.getTarget())) {
+                        // same address, different dest: turn into move
+                        textSegment.set(i, new MipsAlu(
+                                MipsAlu.AluType.ADDU,
+                                currentLsu.getRd(), previousLsu.getRd(), Register.ZERO));
                         finished = false;
                     }
                 }
