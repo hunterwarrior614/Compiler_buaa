@@ -14,7 +14,7 @@ public class MarsMove extends MipsMars {
 
     @Override
     public String toString() {
-        // move $t1, $t2
-        return (dst == src ? "# " : "") + "move " + dst + ", " + src;
+        // move $t1, $t2 -> addu $t1, $zero, $t2
+        return (dst == src ? "# " : "") + "addu " + dst + ", $zero, " + src;
     }
 }

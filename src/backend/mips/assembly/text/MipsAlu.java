@@ -7,11 +7,11 @@ import backend.mips.assembly.MipsType;
 public class MipsAlu extends MipsAssembly {
     public enum AluType {
         // R 型指令
-        ADD, SUB, ADDU, SUBU,
+        ADD, SUB, ADDU, SUBU, XOR, OR, AND, NOR, SLTU,
         // 移位指令
         SLL, SRA,
         // I 型指令
-        ADDI, ADDIU;
+        ADDI, ADDIU, XORI, ORI, ANDI, SLTIU;
 
         @Override
         public String toString() {
@@ -19,11 +19,12 @@ public class MipsAlu extends MipsAssembly {
         }
 
         public boolean isInstrR() {
-            return this == ADD || this == SUB || this == ADDU || this == SUBU;
+            return this == ADD || this == SUB || this == ADDU || this == SUBU || 
+                   this == XOR || this == OR || this == AND || this == NOR || this == SLTU;
         }
 
         public boolean isInstrI() {
-            return this == ADDI || this == ADDIU;
+            return this == ADDI || this == ADDIU || this == XORI || this == ORI || this == ANDI || this == SLTIU;
         }
 
         public boolean isInstrShift() {

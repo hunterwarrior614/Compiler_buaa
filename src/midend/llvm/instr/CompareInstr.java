@@ -82,11 +82,34 @@ public class CompareInstr extends IrInstr {
 
         switch (compType) {
             // slt $t1, $t2, $t3
-            case EQ -> new MipsCompare(MipsCompare.CompareType.SEQ, resultRegister, lRegister, rRegister);
-            case NE -> new MipsCompare(MipsCompare.CompareType.SNE, resultRegister, lRegister, rRegister);
-            case SLE -> new MipsCompare(MipsCompare.CompareType.SLE, resultRegister, lRegister, rRegister);
-            case SGE -> new MipsCompare(MipsCompare.CompareType.SGE, resultRegister, lRegister, rRegister);
-            case SGT -> new MipsCompare(MipsCompare.CompareType.SGT, resultRegister, lRegister, rRegister);
+            case EQ -> {
+                // xor $rd, $rs, $rt
+                new backend.mips.assembly.text.MipsAlu(backend.mips.assembly.text.MipsAlu.AluType.XOR, resultRegister, lRegister, rRegister);
+                // sltiu $rd, $rd, 1
+                new backend.mips.assembly.text.MipsAlu(backend.mips.assembly.text.MipsAlu.AluType.SLTIU, resultRegister, resultRegister, 1);
+            }
+            case NE -> {
+                // xor $rd, $rs, $rt
+                new backend.mips.assembly.text.MipsAlu(backend.mips.assembly.text.MipsAlu.AluType.XOR, resultRegister, lRegister, rRegister);
+                // sltu $rd, $zero, $rd
+                new backend.mips.assembly.text.MipsAlu(backend.mips.assembly.text.MipsAlu.AluType.SLTU, resultRegister, Register.ZERO, resultRegister);
+            }
+            case SLE -> {
+                // slt $rd, $rt, $rs
+                new MipsCompare(MipsCompare.CompareType.SLT, resultRegister, rRegister, lRegister);
+                // xori $rd, $rd, 1
+                new backend.mips.assembly.text.MipsAlu(backend.mips.assembly.text.MipsAlu.AluType.XORI, resultRegister, resultRegister, 1);
+            }
+            case SGE -> {
+                // slt $rd, $rs, $rt
+                new MipsCompare(MipsCompare.CompareType.SLT, resultRegister, lRegister, rRegister);
+                // xori $rd, $rd, 1
+                new backend.mips.assembly.text.MipsAlu(backend.mips.assembly.text.MipsAlu.AluType.XORI, resultRegister, resultRegister, 1);
+            }
+            case SGT -> {
+                // slt $rd, $rt, $rs
+                new MipsCompare(MipsCompare.CompareType.SLT, resultRegister, rRegister, lRegister);
+            }
             case SLT -> new MipsCompare(MipsCompare.CompareType.SLT, resultRegister, lRegister, rRegister);
         }
 
