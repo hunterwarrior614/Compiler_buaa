@@ -7,31 +7,44 @@ import midend.llvm.value.IrBasicBlock;
 import midend.llvm.value.IrFunc;
 
 import java.util.ArrayList;
+import java.util.List;
 
 public class MemToReg extends Optimizer {
     @Override
     public void Optimize() {
-        for (IrFunc irFunction : irModule.getIrFuncs()) {
-            if (irFunction.getBasicBlocks().isEmpty())
-                continue;
-            IrBasicBlock entryBlock = irFunction.getBasicBlocks().get(0);
-            for (IrBasicBlock irBasicBlock : irFunction.getBasicBlocks()) {
-                ArrayList<IrInstr> instrList = new ArrayList<>(irBasicBlock.getInstrs());
-                for (IrInstr instr : instrList) {
-                    if (isValueAllocate(instr)) {
-                        InsertPhi insertPhi = new InsertPhi((AllocateInstr) instr, entryBlock);
-                        insertPhi.addPhi();
-                    }
-                }
-            }
+        for (IrFunc func : irModule.getIrFuncs()) {
+            promoteMemoryToRegister(func);
         }
     }
 
-    private boolean isValueAllocate(IrInstr instr) {
-        // 只对非数组类型添加phi
-        if (instr instanceof AllocateInstr allocateInstr) {
-            IrBaseType targetType = allocateInstr.getIrBaseType().getPointValueType();
-            return !targetType.getTypeValue().equals(IrBaseType.TypeValue.INT_ARRAY);
+    private void promoteMemoryToRegister(IrFunc func) {
+        if (func.getBasicBlocks().isEmpty())
+            return;
+
+        IrBasicBlock entry = func.getBasicBlocks().get(0);
+        List<AllocateInstr> allocas = findAllocas(func);
+
+        for (AllocateInstr alloca : allocas) {
+            InsertPhi transformer = new InsertPhi(alloca, entry);
+            transformer.addPhi();
+        }
+    }
+
+    private List<AllocateInstr> findAllocas(IrFunc func) {
+        List<AllocateInstr> list = new ArrayList<>();
+        for (IrBasicBlock block : func.getBasicBlocks()) {
+            for (IrInstr instr : block.getInstrs()) {
+                if (canPromote(instr)) {
+                    list.add((AllocateInstr) instr);
+                }
+            }
+        }
+        return list;
+    }
+
+    private boolean canPromote(IrInstr instr) {
+        if (instr instanceof AllocateInstr alloca) {
+            return !alloca.getIrBaseType().getPointValueType().getTypeValue().equals(IrBaseType.TypeValue.INT_ARRAY);
         }
         return false;
     }

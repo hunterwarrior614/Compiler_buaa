@@ -13,122 +13,143 @@ import java.util.HashSet;
 public class CfgBuilder extends Optimizer {
     @Override
     public void Optimize() {
-        // 清除之前生成的支配关系
-        this.InitFunction();
-        // 构建CFG图
-        this.BuildCfg();
-        // 构建支配关系
-        this.BuildDominateRelationship();
-        // 构建直接支配关系
-        this.BuildDirectDominator();
-        // 构建支配边界
-        this.BuildDominateFrontier();
+        this.clearCfgInfo();
+        this.constructFlowGraph();
+        this.calculateDominators();
+        this.calculateImmediateDominators();
+        this.calculateDominanceFrontiers();
     }
 
-    private void InitFunction() {
-        for (IrFunc irFunction : irModule.getIrFuncs()) {
-            for (IrBasicBlock irBasicBlock : irFunction.getBasicBlocks()) {
-                irBasicBlock.clearCfg();
+    private void clearCfgInfo() {
+        for (IrFunc func : irModule.getIrFuncs()) {
+            for (IrBasicBlock block : func.getBasicBlocks()) {
+                block.clearCfg();
             }
         }
     }
 
-    private void BuildCfg() {
-        // 构建CFG图
-        for (IrFunc irFunction : irModule.getIrFuncs()) {
-            for (IrBasicBlock visitBlock : irFunction.getBasicBlocks()) {
-                for (IrInstr instr : visitBlock.getInstrs()) {
-                    // 如果是jump
-                    if (instr instanceof JumpInstr jumpInstr) {
-                        IrBasicBlock targetBlock = jumpInstr.getJumpBlock();
-                        visitBlock.addNextBlock(targetBlock);
-                        targetBlock.addBeforeBlock(visitBlock);
+    private void constructFlowGraph() {
+        for (IrFunc func : irModule.getIrFuncs()) {
+            for (IrBasicBlock block : func.getBasicBlocks()) {
+                if (block.getInstrs().isEmpty())
+                    continue;
+                IrInstr lastInstr = block.getInstrs().get(block.getInstrs().size() - 1);
+
+                if (lastInstr instanceof JumpInstr jump) {
+                    IrBasicBlock target = jump.getJumpBlock();
+                    this.linkBlocks(block, target);
+                } else if (lastInstr instanceof BranchInstr branch) {
+                    this.linkBlocks(block, branch.getTrueBlock());
+                    this.linkBlocks(block, branch.getFalseBlock());
+                }
+            }
+        }
+    }
+
+    private void linkBlocks(IrBasicBlock pred, IrBasicBlock succ) {
+        pred.addNextBlock(succ);
+        succ.addBeforeBlock(pred);
+    }
+
+    // 使用迭代算法构建支配关系
+    private void calculateDominators() {
+        for (IrFunc func : irModule.getIrFuncs()) {
+            ArrayList<IrBasicBlock> blocks = func.getBasicBlocks();
+            if (blocks.isEmpty())
+                continue;
+
+            IrBasicBlock entry = blocks.get(0);
+
+            // 初始化：Dom(entry) = {entry}, Dom(others) = {all blocks}
+            for (IrBasicBlock block : blocks) {
+                if (block == entry) {
+                    block.addDominator(entry);
+                } else {
+                    for (IrBasicBlock b : blocks) {
+                        block.addDominator(b);
                     }
-                    // 如果是branch
-                    else if (instr instanceof BranchInstr branchInstr) {
-                        IrBasicBlock trueBlock = branchInstr.getTrueBlock();
-                        IrBasicBlock falseBlock = branchInstr.getFalseBlock();
-                        visitBlock.addNextBlock(trueBlock);
-                        visitBlock.addNextBlock(falseBlock);
-                        trueBlock.addBeforeBlock(visitBlock);
-                        falseBlock.addBeforeBlock(visitBlock);
+                }
+            }
+
+            boolean changed = true;
+            while (changed) {
+                changed = false;
+                for (IrBasicBlock block : blocks) {
+                    if (block == entry)
+                        continue;
+
+                    // NewDom = {block} U (Intersection of Dom(p) for all p in preds)
+                    HashSet<IrBasicBlock> newDom = new HashSet<>();
+                    ArrayList<IrBasicBlock> preds = block.getBeforeBlocks();
+
+                    if (preds.isEmpty()) {
+                        continue;
+                    }
+
+                    // 初始化交集为第一个前驱的支配集合
+                    newDom.addAll(preds.get(0).getDominatorBlocks());
+
+                    for (int i = 1; i < preds.size(); i++) {
+                        newDom.retainAll(preds.get(i).getDominatorBlocks());
+                    }
+
+                    newDom.add(block);
+
+                    // 检查是否发生变化
+                    ArrayList<IrBasicBlock> currentDom = block.getDominatorBlocks();
+                    // 注意：这里比较集合内容是否一致
+                    if (newDom.size() != currentDom.size() || !newDom.containsAll(currentDom)) {
+                        currentDom.clear();
+                        currentDom.addAll(newDom);
+                        changed = true;
                     }
                 }
             }
         }
     }
 
-    // 构建支配关系，使用结点删除法：
-    // 如果删去图中的某一个结点后，有一些结点变得不可到达，那么这个被删去的结点支配这些变得不可到达的结点
-    private void BuildDominateRelationship() {
-        for (IrFunc irFunction : irModule.getIrFuncs()) {
-            ArrayList<IrBasicBlock> blockList = irFunction.getBasicBlocks();
-            for (IrBasicBlock deleteBlock : blockList) {
-                HashSet<IrBasicBlock> visited = new HashSet<>();
-                // 从起始点开始遍历，visited存储删除deleteBlock后能访问得到的基本块
-                this.SearchDfs(blockList.get(0), deleteBlock, visited);
-                // 遍历irFunction中的基本块，如果不在visited中，则说明不可达，deleteBlock支配它
-                for (IrBasicBlock visitBlock : blockList) {
-                    if (!visited.contains(visitBlock)) {
-                        visitBlock.addDominator(deleteBlock);
+    // 构建直接支配关系
+    private void calculateImmediateDominators() {
+        for (IrFunc func : irModule.getIrFuncs()) {
+            for (IrBasicBlock block : func.getBasicBlocks()) {
+                if (block == func.getBasicBlocks().get(0))
+                    continue;
+
+                ArrayList<IrBasicBlock> dominators = block.getDominatorBlocks();
+                // IDom(n) 是 Dom(n)-{n} 中支配集合大小最大的那个结点
+                IrBasicBlock idom = null;
+                int maxDoms = -1;
+
+                for (IrBasicBlock dom : dominators) {
+                    if (dom == block)
+                        continue;
+
+                    int size = dom.getDominatorBlocks().size();
+                    if (size > maxDoms) {
+                        maxDoms = size;
+                        idom = dom;
                     }
+                }
+
+                if (idom != null) {
+                    block.setImmediateDominator(idom);
                 }
             }
         }
     }
 
-    private void SearchDfs(IrBasicBlock visitBlock, IrBasicBlock deleteBlock,
-            HashSet<IrBasicBlock> visited) {
-        if (visitBlock == deleteBlock) {
-            return;
-        }
+    // 构建支配边界
+    private void calculateDominanceFrontiers() {
+        for (IrFunc func : irModule.getIrFuncs()) {
+            for (IrBasicBlock block : func.getBasicBlocks()) {
+                ArrayList<IrBasicBlock> successors = block.getNextBlocks();
 
-        visited.add(visitBlock);
-        for (IrBasicBlock nextBlock : visitBlock.getNextBlocks()) {
-            if (!visited.contains(nextBlock) && nextBlock != deleteBlock) {
-                this.SearchDfs(nextBlock, deleteBlock, visited);
-            }
-        }
-    }
-
-    // 构建结点的直接支配关系
-    private void BuildDirectDominator() {
-        for (IrFunc irFunction : irModule.getIrFuncs()) {
-            for (IrBasicBlock visitBlock : irFunction.getBasicBlocks()) {
-                // 通过删去共同的支配者，来找出最短路径
-                for (IrBasicBlock dominator : visitBlock.getDominatorBlocks()) {
-                    HashSet<IrBasicBlock> sharedDominators = new HashSet<>(visitBlock.getDominatorBlocks());
-                    // 保留共同支配者
-                    sharedDominators.retainAll(dominator.getDominatorBlocks());
-
-                    HashSet<IrBasicBlock> diffDominators = new HashSet<>(visitBlock.getDominatorBlocks());
-                    // 和支配者不同的支配结点
-                    diffDominators.removeAll(sharedDominators);
-                    // 支配者的支配着集合中仅有自身，说明直接支配
-                    if (diffDominators.size() == 1 && diffDominators.contains(visitBlock)) {
-                        visitBlock.setImmediateDominator(dominator);
-                        break;
-                    }
-                }
-            }
-        }
-    }
-
-    private void BuildDominateFrontier() {
-        for (IrFunc irFunction : irModule.getIrFuncs()) {
-            for (IrBasicBlock visitBlock : irFunction.getBasicBlocks()) {
-                ArrayList<IrBasicBlock> nextBlocksBlocks = visitBlock.getNextBlocks();
-                for (IrBasicBlock nextBlock : nextBlocksBlocks) {
-                    // 指针，沿着直接支配关系进行上溯
-                    IrBasicBlock currentBlock = visitBlock;
-                    // 后继块就是 cur 或者是 nextBlock 的支配者不包括 cur
-                    while (!nextBlock.getDominatorBlocks().contains(currentBlock) || currentBlock == nextBlock) {
-                        currentBlock.addDominateFrontier(nextBlock);
-                        // 进行上溯
-                        currentBlock = currentBlock.getImmediateDominator();
-                        if (currentBlock == null) {
-                            break;
-                        }
+                for (IrBasicBlock succ : successors) {
+                    IrBasicBlock runner = block;
+                    // 只要 runner 不是 succ 的直接支配者，就继续上溯
+                    while (runner != succ.getImmediateDominator() && runner != null) {
+                        runner.addDominateFrontier(succ);
+                        runner = runner.getImmediateDominator();
                     }
                 }
             }

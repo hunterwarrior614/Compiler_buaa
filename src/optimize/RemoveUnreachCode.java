@@ -9,67 +9,72 @@ import midend.llvm.value.IrFunc;
 
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.Set;
+import java.util.Stack;
 
 public class RemoveUnreachCode extends Optimizer {
     @Override
     public void Optimize() {
-        // 删除多余的jump
-        RemoveUselessJump();
-        // 删除不可达块
-        RemoveUselessBlock();
+        cleanBasicBlocks();
+        removeUnreachableBlocks();
     }
 
-    private void RemoveUselessJump() {
-        for (IrFunc irFunction : irModule.getIrFuncs()) {
-            for (IrBasicBlock irBasicBlock : irFunction.getBasicBlocks()) {
-                boolean hasJump = false;
-                Iterator<IrInstr> iterator = irBasicBlock.getInstrs().iterator();
-                while (iterator.hasNext()) {
-                    IrInstr instr = iterator.next();
-                    if (hasJump) {
+    private void cleanBasicBlocks() {
+        for (IrFunc func : irModule.getIrFuncs()) {
+            for (IrBasicBlock block : func.getBasicBlocks()) {
+                boolean terminated = false;
+                Iterator<IrInstr> it = block.getInstrs().iterator();
+                while (it.hasNext()) {
+                    IrInstr instr = it.next();
+                    if (terminated) {
                         instr.removeAllUsees();
-                        iterator.remove();
-                        continue;
-                    }
-
-                    if (instr instanceof JumpInstr || instr instanceof BranchInstr ||
-                        instr instanceof ReturnInstr) {
-                        hasJump = true;
+                        it.remove();
+                    } else if (isTerminator(instr)) {
+                        terminated = true;
                     }
                 }
             }
         }
     }
 
-    private void RemoveUselessBlock() {
-        for (IrFunc irFunction : irModule.getIrFuncs()) {
-            IrBasicBlock entryBlock = irFunction.getBasicBlocks().get(0);
-            HashSet<IrBasicBlock> visited = new HashSet<>();
-            // 使用dfs记录可达的block
-            DfsBlock(entryBlock, visited);
-            irFunction.getBasicBlocks().removeIf(block -> !visited.contains(block));
+    private boolean isTerminator(IrInstr instr) {
+        return instr instanceof JumpInstr || instr instanceof BranchInstr || instr instanceof ReturnInstr;
+    }
+
+    private void removeUnreachableBlocks() {
+        for (IrFunc func : irModule.getIrFuncs()) {
+            if (func.getBasicBlocks().isEmpty())
+                continue;
+
+            Set<IrBasicBlock> reachable = new HashSet<>();
+            Stack<IrBasicBlock> stack = new Stack<>();
+
+            IrBasicBlock entry = func.getBasicBlocks().get(0);
+            stack.push(entry);
+            reachable.add(entry);
+
+            while (!stack.isEmpty()) {
+                IrBasicBlock block = stack.pop();
+                if (block.getInstrs().isEmpty())
+                    continue;
+
+                IrInstr last = block.getInstrs().get(block.getInstrs().size() - 1);
+                if (last instanceof JumpInstr jump) {
+                    addSucc(jump.getJumpBlock(), reachable, stack);
+                } else if (last instanceof BranchInstr branch) {
+                    addSucc(branch.getTrueBlock(), reachable, stack);
+                    addSucc(branch.getFalseBlock(), reachable, stack);
+                }
+            }
+
+            func.getBasicBlocks().removeIf(b -> !reachable.contains(b));
         }
     }
 
-    private void DfsBlock(IrBasicBlock block, HashSet<IrBasicBlock> visited) {
-        if (visited.contains(block)) {
-            return;
-        }
-
-        visited.add(block);
-        // 一定是跳转
-        IrInstr instr = block.getLastInstr();
-        // jump
-        if (instr instanceof JumpInstr jumpInstr) {
-            IrBasicBlock targetBlock = jumpInstr.getJumpBlock();
-            DfsBlock(targetBlock, visited);
-        }
-        // branch
-        else if (instr instanceof BranchInstr branchInstr) {
-            IrBasicBlock trueBlock = branchInstr.getTrueBlock();
-            IrBasicBlock falseBlock = branchInstr.getFalseBlock();
-            DfsBlock(trueBlock, visited);
-            DfsBlock(falseBlock, visited);
+    private void addSucc(IrBasicBlock succ, Set<IrBasicBlock> reachable, Stack<IrBasicBlock> stack) {
+        if (!reachable.contains(succ)) {
+            reachable.add(succ);
+            stack.push(succ);
         }
     }
 }

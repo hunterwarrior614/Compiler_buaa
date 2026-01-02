@@ -10,108 +10,87 @@ import midend.llvm.value.IrGlobalVariable;
 import midend.llvm.value.IrParameter;
 import midend.llvm.value.IrValue;
 
-import java.util.ArrayList;
-import java.util.HashSet;
+import java.util.*;
 
 public class ActiveAnalysis extends Optimizer {
     @Override
     public void Optimize() {
-        // 清除原先的活跃分析
-        this.ClearActiveInfo();
-        // 分析def和use
-        this.AnalysisDefAndUse();
-        // 分析in和out
-        this.AnalysisInAndOut();
+        this.resetLivenessInfo();
+        this.computeDefUse();
+        this.computeLiveInOut();
     }
 
-    private void ClearActiveInfo() {
-        for (IrFunc irFunction : MidEnd.getIrModule().getIrFuncs()) {
-            for (IrBasicBlock irBasicBlock : irFunction.getBasicBlocks()) {
-                irBasicBlock.clearActiveInfo();
+    private void resetLivenessInfo() {
+        for (IrFunc func : irModule.getIrFuncs()) {
+            for (IrBasicBlock block : func.getBasicBlocks()) {
+                block.clearActiveInfo();
             }
         }
     }
 
-    private void AnalysisDefAndUse() {
-        for (IrFunc irFunction : MidEnd.getIrModule().getIrFuncs()) {
-            for (IrBasicBlock irBasicBlock : irFunction.getBasicBlocks()) {
-                HashSet<IrValue> defSet = irBasicBlock.getDefValueSet();
-                HashSet<IrValue> useSet = irBasicBlock.getUseValueSet();
+    private void computeDefUse() {
+        for (IrFunc func : irModule.getIrFuncs()) {
+            for (IrBasicBlock block : func.getBasicBlocks()) {
+                HashSet<IrValue> defs = block.getDefValueSet();
+                HashSet<IrValue> uses = block.getUseValueSet();
 
-                // 先分析phi指令：由前序时间传入，最早发生
-                for (IrInstr instr : irBasicBlock.getInstrs()) {
-                    if (instr instanceof PhiInstr phiInstr) {
-                        for (IrValue useValue : phiInstr.getUsees()) {
-                            if (this.IsUseValue(useValue)) {
-                                useSet.add(useValue);
-                            }
-                        }
-                    }
-                }
-                // 分析其他指令
-                for (IrInstr instr : irBasicBlock.getInstrs()) {
-                    // 对instr使用的数据分析
-                    for (IrValue useValue : instr.getUsees()) {
-                        if (instr instanceof MoveInstr moveInstr && useValue == moveInstr.getDstValue()) {
+                for (IrInstr instr : block.getInstrs()) {
+                    // Handle Uses
+                    for (IrValue val : instr.getUsees()) {
+                        if (instr instanceof MoveInstr move && val == move.getDstValue()) {
                             continue;
                         }
-                        if (!defSet.contains(useValue) && this.IsUseValue(useValue)) {
-                            useSet.add(useValue);
+
+                        if (isVariable(val) && !defs.contains(val)) {
+                            uses.add(val);
                         }
                     }
-                    // 对instr本身
-                    // 注意：IrInstr 如果返回类型是 VOID，则不应该被视为定义了值
-                    // 但是在 LLVM IR 中，即使是 void 类型的指令也可能是一个 IrValue (虽然不能被使用)
-                    // 这里我们需要判断 instr 是否定义了一个可以被使用的值
-                    // 通常，如果 instr 的类型不是 VOID，它就定义了一个值
-                    if (instr instanceof MoveInstr moveInstr) {
-                        defSet.add(moveInstr.getDstValue());
-                    } else if ((!useSet.contains(instr) || !instr.getIrBaseType().isVoid())
-                            && !instr.getIrBaseType().isVoid()) {
-                        defSet.add(instr);
+
+                    // Handle Defs
+                    if (instr instanceof MoveInstr move) {
+                        defs.add(move.getDstValue());
+                    } else if (!instr.getIrBaseType().isVoid()) {
+                        defs.add(instr);
                     }
                 }
             }
         }
     }
 
-    private boolean IsUseValue(IrValue useValue) {
-        return useValue instanceof IrInstr ||
-                useValue instanceof IrParameter ||
-                useValue instanceof IrGlobalVariable;
+    private boolean isVariable(IrValue val) {
+        return val instanceof IrInstr || val instanceof IrParameter || val instanceof IrGlobalVariable;
     }
 
-    // in[B] = use[B] \cup (out[B] - def[B])
-    // out[B] = \cup in[P] P为B的后继基本块
-    private void AnalysisInAndOut() {
-        for (IrFunc irFunction : MidEnd.getIrModule().getIrFuncs()) {
-            ArrayList<IrBasicBlock> blockList = irFunction.getBasicBlocks();
-            // 进行分析，直到不发生改变
-            boolean haveChange = true;
-            while (haveChange) {
-                haveChange = false;
-                // 对block进行逆序分析
+    private void computeLiveInOut() {
+        for (IrFunc func : irModule.getIrFuncs()) {
+            if (func.getBasicBlocks().isEmpty())
+                continue;
 
-                for (int i = blockList.size() - 1; i >= 0; i--) {
-                    IrBasicBlock analysisBlock = blockList.get(i);
+            Queue<IrBasicBlock> workList = new LinkedList<>(func.getBasicBlocks());
+            Set<IrBasicBlock> inQueue = new HashSet<>(func.getBasicBlocks());
 
-                    // out：对于后继块
-                    HashSet<IrValue> newOutValueSet = new HashSet<>();
-                    for (IrBasicBlock nextBlock : analysisBlock.getNextBlocks()) {
-                        newOutValueSet.addAll(nextBlock.getInValueSet());
-                    }
-                    // in：
-                    HashSet<IrValue> newInValueSet = new HashSet<>(newOutValueSet);
-                    newInValueSet.removeAll(analysisBlock.getDefValueSet());
-                    newInValueSet.addAll(analysisBlock.getUseValueSet());
+            while (!workList.isEmpty()) {
+                IrBasicBlock block = workList.poll();
+                inQueue.remove(block);
 
-                    HashSet<IrValue> oldInValueSet = analysisBlock.getInValueSet();
-                    HashSet<IrValue> oldOutValueSet = analysisBlock.getOutValueSet();
-                    if (!newOutValueSet.equals(oldOutValueSet) ||
-                            !newInValueSet.equals(oldInValueSet)) {
-                        haveChange = true;
-                        analysisBlock.setInValueSet(newInValueSet);
-                        analysisBlock.setOutValueSet(newOutValueSet);
+                HashSet<IrValue> newOut = new HashSet<>();
+                for (IrBasicBlock succ : block.getNextBlocks()) {
+                    newOut.addAll(succ.getInValueSet());
+                }
+
+                HashSet<IrValue> newIn = new HashSet<>(newOut);
+                newIn.removeAll(block.getDefValueSet());
+                newIn.addAll(block.getUseValueSet());
+
+                if (!newIn.equals(block.getInValueSet()) || !newOut.equals(block.getOutValueSet())) {
+                    block.setInValueSet(newIn);
+                    block.setOutValueSet(newOut);
+
+                    for (IrBasicBlock pred : block.getBeforeBlocks()) {
+                        if (!inQueue.contains(pred)) {
+                            workList.add(pred);
+                            inQueue.add(pred);
+                        }
                     }
                 }
             }

@@ -10,232 +10,224 @@ import midend.llvm.value.IrValue;
 import java.util.*;
 
 public class RemoveDeadCode extends Optimizer {
-    // 记录调用了哪些函数
-    private final HashMap<IrFunc, HashSet<IrFunc>> calleeMap;
-    // 记录被哪些函数调用
-    private final HashMap<IrFunc, HashSet<IrFunc>> callerMap;
-    // 副作用：有IO操作
-    private final HashSet<IrFunc> sideEffectFunctions;
+    private final Map<IrFunc, Set<IrFunc>> callGraph;
+    private final Map<IrFunc, Set<IrFunc>> reverseCallGraph;
+    private final Set<IrFunc> sideEffectFuncs;
 
     public RemoveDeadCode() {
-        this.calleeMap = new HashMap<>();
-        this.callerMap = new HashMap<>();
-        this.sideEffectFunctions = new HashSet<>();
+        this.callGraph = new HashMap<>();
+        this.reverseCallGraph = new HashMap<>();
+        this.sideEffectFuncs = new HashSet<>();
     }
 
     @Override
     public void Optimize() {
-        boolean finished = false;
-        while (!finished) {
-            this.BuildFunctionCallMap();
-            finished = this.RemoveUselessFunction();
-            finished &= this.RemoveUselessBlock();
-            finished &= this.RemoveUselessCode();
-            finished &= this.RemoveUselessPhi();
-            finished &= this.MergeBlock();
+        boolean changed = true;
+        while (changed) {
+            changed = false;
+            this.analyzeCallGraph();
+            changed |= this.eliminateUnusedFunctions();
+            changed |= this.eliminateUnreachableBlocks();
+            changed |= this.eliminateDeadInstructions();
+            changed |= this.simplifyPhis();
+            changed |= this.mergeBasicBlocks();
         }
     }
 
-    private void BuildFunctionCallMap() {
-        // 进行初始化
-        this.calleeMap.clear();
-        this.callerMap.clear();
-        for (IrFunc irFunction : irModule.getIrFuncs()) {
-            this.calleeMap.put(irFunction, new HashSet<>());
-            this.callerMap.put(irFunction, new HashSet<>());
+    private void analyzeCallGraph() {
+        callGraph.clear();
+        reverseCallGraph.clear();
+        sideEffectFuncs.clear();
+
+        for (IrFunc func : irModule.getIrFuncs()) {
+            callGraph.put(func, new HashSet<>());
+            reverseCallGraph.put(func, new HashSet<>());
         }
-        // 进行dfs
-        this.DfsSideFunction(irModule.getMainFunction(), new HashSet<>());
-    }
 
-    private void DfsSideFunction(IrFunc visitFunction, HashSet<IrFunc> visited) {
-        if (visited.contains(visitFunction)) {
-            return;
-        }
-        visited.add(visitFunction);
-
-        for (IrBasicBlock irBasicBlock : visitFunction.getBasicBlocks()) {
-            for (IrInstr instr : irBasicBlock.getInstrs()) {
-                // 函数调用
-                if (instr instanceof CallInstr callInstr) {
-                    IrFunc callee = callInstr.getFunc();
-                    this.DfsSideFunction(callee, visited);
-
-                    this.calleeMap.get(visitFunction).add(callee);
-                    this.callerMap.get(callee).add(visitFunction);
-                    // 对与函数副作用
-                    if (this.sideEffectFunctions.contains(callee)) {
-                        this.sideEffectFunctions.add(visitFunction);
+        // 1. Initialize local side effects and build graph
+        for (IrFunc func : irModule.getIrFuncs()) {
+            for (IrBasicBlock block : func.getBasicBlocks()) {
+                for (IrInstr instr : block.getInstrs()) {
+                    if (instr instanceof CallInstr call) {
+                        IrFunc callee = call.getFunc();
+                        callGraph.get(func).add(callee);
+                        reverseCallGraph.get(callee).add(func);
+                    } else if (instr instanceof StoreInstr || instr instanceof IOInstr) {
+                        sideEffectFuncs.add(func);
                     }
                 }
-                // IO、存操作
-                else if (instr instanceof IOInstr || instr instanceof StoreInstr) {
-                    this.sideEffectFunctions.add(visitFunction);
+            }
+        }
+
+        // 2. Propagate side effects
+        boolean changed = true;
+        while (changed) {
+            changed = false;
+            for (IrFunc func : irModule.getIrFuncs()) {
+                if (!sideEffectFuncs.contains(func)) {
+                    for (IrFunc callee : callGraph.get(func)) {
+                        if (sideEffectFuncs.contains(callee)) {
+                            sideEffectFuncs.add(func);
+                            changed = true;
+                            break;
+                        }
+                    }
                 }
             }
         }
     }
 
-    // 删除无用函数
-    private boolean RemoveUselessFunction() {
-        boolean finished = true;
+    private boolean eliminateUnusedFunctions() {
+        boolean changed = false;
+        Iterator<IrFunc> it = irModule.getIrFuncs().iterator();
+        while (it.hasNext()) {
+            IrFunc func = it.next();
+            if (func.isMainFunction())
+                continue;
 
-        Iterator<IrFunc> iterator = irModule.getIrFuncs().iterator();
-        while (iterator.hasNext()) {
-            IrFunc irFunction = iterator.next();
-            // 无人调用，删除：即使有sideEffect也没关系
-            if (!irFunction.isMainFunction() && this.callerMap.get(irFunction).isEmpty()) {
-                iterator.remove();
-                finished = false;
+            if (reverseCallGraph.get(func).isEmpty()) {
+                it.remove();
+                changed = true;
             }
         }
-
-        return finished;
+        return changed;
     }
 
-    // 删除无用基本块
-    private boolean RemoveUselessBlock() {
-        boolean finished = true;
-        for (IrFunc irFunction : irModule.getIrFuncs()) {
-            Iterator<IrBasicBlock> iterator = irFunction.getBasicBlocks().iterator();
-            while (iterator.hasNext()) {
-                IrBasicBlock visitBlock = iterator.next();
-                // 不可达块，删除
-                if (visitBlock.getBeforeBlocks().isEmpty() && !visitBlock.isEntryBlock()) {
-                    // 改变关系
-                    for (IrBasicBlock nextBlock : visitBlock.getNextBlocks()) {
-                        nextBlock.getBeforeBlocks().remove(visitBlock);
-                        // 消除phi
-                        for (IrInstr nextInstr : nextBlock.getInstrs()) {
-                            if (nextInstr instanceof PhiInstr phiInstr) {
-                                phiInstr.removeBlock(visitBlock);
+    private boolean eliminateUnreachableBlocks() {
+        boolean changed = false;
+        for (IrFunc func : irModule.getIrFuncs()) {
+            Iterator<IrBasicBlock> it = func.getBasicBlocks().iterator();
+            while (it.hasNext()) {
+                IrBasicBlock block = it.next();
+                if (block.isEntryBlock())
+                    continue;
+
+                if (block.getBeforeBlocks().isEmpty()) {
+                    for (IrBasicBlock succ : block.getNextBlocks()) {
+                        succ.getBeforeBlocks().remove(block);
+                        for (IrInstr instr : succ.getInstrs()) {
+                            if (instr instanceof PhiInstr phi) {
+                                phi.removeBlock(block);
                             }
                         }
                     }
-                    // 删除指令
-                    for (IrInstr instr : visitBlock.getInstrs()) {
+
+                    for (IrInstr instr : block.getInstrs()) {
                         instr.removeAllUsees();
                     }
 
-                    finished = false;
-                    iterator.remove();
+                    it.remove();
+                    changed = true;
                 }
             }
         }
-        return finished;
+        return changed;
     }
 
-    // 删除无用代码
-    private boolean RemoveUselessCode() {
-        boolean finished = true;
-        HashSet<IrInstr> activeInstrSet = this.GetActiveInstrSet();
+    private boolean eliminateDeadInstructions() {
+        Set<IrInstr> liveInstrs = markLiveInstructions();
+        boolean changed = false;
 
-        for (IrFunc irFunction : irModule.getIrFuncs()) {
-            for (IrBasicBlock irBasicBlock : irFunction.getBasicBlocks()) {
-                Iterator<IrInstr> iterator = irBasicBlock.getInstrs().iterator();
-                while (iterator.hasNext()) {
-                    IrInstr instr = iterator.next();
-                    if (!activeInstrSet.contains(instr)) {
+        for (IrFunc func : irModule.getIrFuncs()) {
+            for (IrBasicBlock block : func.getBasicBlocks()) {
+                Iterator<IrInstr> it = block.getInstrs().iterator();
+                while (it.hasNext()) {
+                    IrInstr instr = it.next();
+                    if (!liveInstrs.contains(instr)) {
                         instr.removeAllUsees();
-                        iterator.remove();
-                        finished = false;
+                        it.remove();
+                        changed = true;
+                    }
+                }
+            }
+        }
+        return changed;
+    }
+
+    private Set<IrInstr> markLiveInstructions() {
+        Set<IrInstr> live = new HashSet<>();
+        Queue<IrInstr> workList = new LinkedList<>();
+
+        for (IrFunc func : irModule.getIrFuncs()) {
+            for (IrBasicBlock block : func.getBasicBlocks()) {
+                for (IrInstr instr : block.getInstrs()) {
+                    if (isCritical(instr)) {
+                        live.add(instr);
+                        workList.add(instr);
                     }
                 }
             }
         }
 
-        return finished;
-    }
-
-    private HashSet<IrInstr> GetActiveInstrSet() {
-        HashSet<IrInstr> activeInstrSet = new HashSet<>();
-        Stack<IrInstr> todoInstrStack = new Stack<>();
-        for (IrFunc irFunction : irModule.getIrFuncs()) {
-            for (IrBasicBlock irBasicBlock : irFunction.getBasicBlocks()) {
-                for (IrInstr instr : irBasicBlock.getInstrs()) {
-                    if (this.IsCriticalInstr(instr)) {
-                        todoInstrStack.push(instr);
-                    }
+        while (!workList.isEmpty()) {
+            IrInstr instr = workList.poll();
+            for (IrValue op : instr.getUsees()) {
+                if (op instanceof IrInstr opInstr && !live.contains(opInstr)) {
+                    live.add(opInstr);
+                    workList.add(opInstr);
                 }
             }
         }
+        return live;
+    }
 
-        while (!todoInstrStack.isEmpty()) {
-            IrInstr todoInstr = todoInstrStack.pop();
-            activeInstrSet.add(todoInstr);
-            for (IrValue useValue : todoInstr.getUsees()) {
-                if (useValue instanceof IrInstr useInstr) {
-                    if (!activeInstrSet.contains(useInstr)) {
-                        todoInstrStack.push(useInstr);
-                    }
-                    activeInstrSet.add(useInstr);
-                }
-            }
+    private boolean isCritical(IrInstr instr) {
+        if (instr instanceof ReturnInstr ||
+                instr instanceof BranchInstr ||
+                instr instanceof JumpInstr ||
+                instr instanceof StoreInstr ||
+                instr instanceof IOInstr) {
+            return true;
         }
-
-        return activeInstrSet;
-    }
-
-    private boolean IsCriticalInstr(IrInstr instr) {
-        return instr instanceof ReturnInstr ||
-                (instr instanceof CallInstr callInstr &&
-                        this.sideEffectFunctions.contains(callInstr.getFunc())) ||
-                instr instanceof BranchInstr || instr instanceof JumpInstr ||
-                instr instanceof StoreInstr || instr instanceof IOInstr;
-    }
-
-    private boolean RemoveUselessPhi() {
-        boolean finished = true;
-        for (IrFunc irFunction : irModule.getIrFuncs()) {
-            for (IrBasicBlock irBasicBlock : irFunction.getBasicBlocks()) {
-                Iterator<IrInstr> iterator = irBasicBlock.getInstrs().iterator();
-                while (iterator.hasNext()) {
-                    IrInstr instr = iterator.next();
-                    if (!(instr instanceof PhiInstr phiInstr)) {
-                        continue;
-                    }
-
-                    ArrayList<IrValue> phiValueList = phiInstr.getUsees();
-                    if (phiValueList.size() == 1) {
-                        finished = false;
-                        phiInstr.replaceAllUsesWith(phiValueList.get(0));
-                        phiInstr.removeAllUsees();
-                        iterator.remove();
-                    }
-                }
-            }
-        }
-
-        return finished;
-    }
-
-    private boolean MergeBlock() {
-        boolean finished = true;
-
-        for (IrFunc irFunction : irModule.getIrFuncs()) {
-            Iterator<IrBasicBlock> iterator = irFunction.getBasicBlocks().iterator();
-            while (iterator.hasNext()) {
-                IrBasicBlock irBasicBlock = iterator.next();
-                if (this.CanMergeBlock(irBasicBlock)) {
-                    finished = false;
-                    IrBasicBlock beforeBlock = irBasicBlock.getBeforeBlocks().get(0);
-                    beforeBlock.appendBlock(irBasicBlock);
-                    iterator.remove();
-                }
-            }
-        }
-
-        return finished;
-    }
-
-    private boolean CanMergeBlock(IrBasicBlock visitBlock) {
-        ArrayList<IrBasicBlock> beforeBlockList = visitBlock.getBeforeBlocks();
-        if (beforeBlockList.size() == 1) {
-            IrBasicBlock beforeBlock = beforeBlockList.get(0);
-            // 前后对接上，则可以合并
-            return beforeBlock.getNextBlocks().size() == 1 &&
-                    beforeBlock.getNextBlocks().get(0) == visitBlock;
+        if (instr instanceof CallInstr call) {
+            return sideEffectFuncs.contains(call.getFunc());
         }
         return false;
+    }
+
+    private boolean simplifyPhis() {
+        boolean changed = false;
+        for (IrFunc func : irModule.getIrFuncs()) {
+            for (IrBasicBlock block : func.getBasicBlocks()) {
+                Iterator<IrInstr> it = block.getInstrs().iterator();
+                while (it.hasNext()) {
+                    IrInstr instr = it.next();
+                    if (instr instanceof PhiInstr phi) {
+                        ArrayList<IrValue> incoming = phi.getUsees();
+                        if (incoming.size() == 1) {
+                            phi.replaceAllUsesWith(incoming.get(0));
+                            phi.removeAllUsees();
+                            it.remove();
+                            changed = true;
+                        }
+                    }
+                }
+            }
+        }
+        return changed;
+    }
+
+    private boolean mergeBasicBlocks() {
+        boolean changed = false;
+        for (IrFunc func : irModule.getIrFuncs()) {
+            Iterator<IrBasicBlock> it = func.getBasicBlocks().iterator();
+            while (it.hasNext()) {
+                IrBasicBlock block = it.next();
+                if (canMerge(block)) {
+                    IrBasicBlock pred = block.getBeforeBlocks().get(0);
+                    pred.appendBlock(block);
+                    it.remove();
+                    changed = true;
+                }
+            }
+        }
+        return changed;
+    }
+
+    private boolean canMerge(IrBasicBlock block) {
+        if (block.getBeforeBlocks().size() != 1)
+            return false;
+        IrBasicBlock pred = block.getBeforeBlocks().get(0);
+        return pred.getNextBlocks().size() == 1 && pred.getNextBlocks().get(0) == block;
     }
 }

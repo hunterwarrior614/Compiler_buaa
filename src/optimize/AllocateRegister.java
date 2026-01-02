@@ -6,10 +6,11 @@ import midend.llvm.value.IrFunc;
 public class AllocateRegister extends Optimizer {
     @Override
     public void Optimize() {
-        for (IrFunc irFunction : MidEnd.getIrModule().getIrFuncs()) {
-            RegisterAllocator allocator = new RegisterAllocator(irFunction);
-            // 从起始开始分配
-            allocator.Allocate(irFunction.getBasicBlocks().get(0));
+        for (IrFunc func : MidEnd.getIrModule().getIrFuncs()) {
+            RegisterAllocator allocator = new RegisterAllocator(func);
+            if (!func.getBasicBlocks().isEmpty()) {
+                allocator.run(func.getBasicBlocks().get(0));
+            }
         }
     }
 }
