@@ -45,6 +45,10 @@ public class AluInstr extends IrInstr {
         };
     }
 
+    public AluType getAluType() {
+        return aluType;
+    }
+
     private IrValue getLValue() {
         return usees.get(0);
     }

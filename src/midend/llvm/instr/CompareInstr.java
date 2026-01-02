@@ -11,10 +11,10 @@ public class CompareInstr extends IrInstr {
     public enum CompareOpType {
         EQ,
         NE,
-        SGT,    // >
-        SGE,    // >=
-        SLT,    // <
-        SLE;    // <=
+        SGT, // >
+        SGE, // >=
+        SLT, // <
+        SLE; // <=
 
         @Override
         public String toString() {
@@ -41,6 +41,10 @@ public class CompareInstr extends IrInstr {
             case "<=" -> CompareOpType.SLE;
             default -> throw new Error("[ERROR] Invalid compareOp]");
         };
+    }
+
+    public CompareOpType getCmpType() {
+        return compType;
     }
 
     private IrValue getLValue() {

@@ -75,8 +75,13 @@ public class GetElemInstr extends IrInstr {
         // 如果索引是变量，则需要将变量通过移位指令获取地址偏移
         else {
             loadIrValue2Register(index, indexRegister); // 加载索引
-            new MipsAlu(MipsAlu.AluType.SLL, indexRegister, indexRegister, 2); // 获取地址偏移
-            new MipsAlu(MipsAlu.AluType.ADDU, addrResultRegister, baseRegister, indexRegister);
+            if (addrResultRegister != baseRegister) {
+                new MipsAlu(MipsAlu.AluType.SLL, addrResultRegister, indexRegister, 2); // 获取地址偏移
+                new MipsAlu(MipsAlu.AluType.ADDU, addrResultRegister, baseRegister, addrResultRegister);
+            } else {
+                new MipsAlu(MipsAlu.AluType.SLL, Register.K1, indexRegister, 2); // 获取地址偏移
+                new MipsAlu(MipsAlu.AluType.ADDU, addrResultRegister, baseRegister, Register.K1);
+            }
         }
 
         storeRegister2IrValue(addrResultRegister, this);

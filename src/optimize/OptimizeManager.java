@@ -25,6 +25,14 @@ public class OptimizeManager {
         optimizerList.add(new RemoveDeadCode());
         optimizerList.add(new CfgBuilder());
 
+        for (int i = 0; i < 5; i++) {
+            optimizerList.add(new GVN());
+            optimizerList.add(new RemoveUnreachCode());
+            optimizerList.add(new CfgBuilder());
+            optimizerList.add(new RemoveDeadCode());
+            optimizerList.add(new CfgBuilder());
+        }
+
         optimizerList.add(new RemovePhi());
         optimizerList.add(new CfgBuilder());
 

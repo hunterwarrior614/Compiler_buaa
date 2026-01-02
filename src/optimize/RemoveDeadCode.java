@@ -24,13 +24,71 @@ public class RemoveDeadCode extends Optimizer {
     public void Optimize() {
         boolean changed = true;
         while (changed) {
+            changed = false;
             this.analyzeCallGraph();
-            changed = this.eliminateUnusedFunctions();
+            changed |= this.eliminateUnusedFunctions();
             changed |= this.eliminateUnreachableBlocks();
+            changed |= this.eliminateRedundantStores();
             changed |= this.eliminateDeadInstructions();
             changed |= this.simplifyPhis();
+            changed |= this.simplifyBranches();
             changed |= this.mergeBasicBlocks();
         }
+    }
+
+    private boolean eliminateRedundantStores() {
+        boolean changed = false;
+        for (IrFunc func : irModule.getIrFuncs()) {
+            for (IrBasicBlock block : func.getBasicBlocks()) {
+                Map<IrValue, StoreInstr> lastStores = new HashMap<>();
+                Set<IrInstr> deadStores = new HashSet<>();
+
+                for (IrInstr instr : block.getInstrs()) {
+                    if (instr instanceof StoreInstr store) {
+                        IrValue addr = store.getAddress();
+                        if (lastStores.containsKey(addr)) {
+                            deadStores.add(lastStores.get(addr));
+                            changed = true;
+                        }
+                        lastStores.put(addr, store);
+                    } else if (instr instanceof LoadInstr || instr instanceof CallInstr || instr instanceof IOInstr) {
+                        lastStores.clear();
+                    }
+                }
+
+                if (!deadStores.isEmpty()) {
+                    Iterator<IrInstr> it = block.getInstrs().iterator();
+                    while (it.hasNext()) {
+                        IrInstr instr = it.next();
+                        if (deadStores.contains(instr)) {
+                            instr.removeAllUsees();
+                            it.remove();
+                        }
+                    }
+                }
+            }
+        }
+        return changed;
+    }
+
+    private boolean simplifyBranches() {
+        boolean changed = false;
+        for (IrFunc func : irModule.getIrFuncs()) {
+            for (IrBasicBlock block : func.getBasicBlocks()) {
+                if (block.getInstrs().isEmpty())
+                    continue;
+                IrInstr last = block.getInstrs().get(block.getInstrs().size() - 1);
+                if (last instanceof BranchInstr branch) {
+                    if (branch.getTrueBlock() == branch.getFalseBlock()) {
+                        JumpInstr jump = new JumpInstr(branch.getTrueBlock(), block);
+                        block.getInstrs().set(block.getInstrs().size() - 1, jump);
+                        branch.removeAllUsees();
+                        changed = true;
+                    }
+                }
+            }
+        }
+        return changed;
     }
 
     private void analyzeCallGraph() {
