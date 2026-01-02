@@ -79,7 +79,6 @@ public class CfgBuilder extends Optimizer {
                         continue;
 
                     // NewDom = {block} U (Intersection of Dom(p) for all p in preds)
-                    HashSet<IrBasicBlock> newDom = new HashSet<>();
                     ArrayList<IrBasicBlock> preds = block.getBeforeBlocks();
 
                     if (preds.isEmpty()) {
@@ -87,7 +86,7 @@ public class CfgBuilder extends Optimizer {
                     }
 
                     // 初始化交集为第一个前驱的支配集合
-                    newDom.addAll(preds.get(0).getDominatorBlocks());
+                    HashSet<IrBasicBlock> newDom = new HashSet<>(preds.get(0).getDominatorBlocks());
 
                     for (int i = 1; i < preds.size(); i++) {
                         newDom.retainAll(preds.get(i).getDominatorBlocks());

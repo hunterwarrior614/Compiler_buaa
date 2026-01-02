@@ -24,9 +24,8 @@ public class RemoveDeadCode extends Optimizer {
     public void Optimize() {
         boolean changed = true;
         while (changed) {
-            changed = false;
             this.analyzeCallGraph();
-            changed |= this.eliminateUnusedFunctions();
+            changed = this.eliminateUnusedFunctions();
             changed |= this.eliminateUnreachableBlocks();
             changed |= this.eliminateDeadInstructions();
             changed |= this.simplifyPhis();

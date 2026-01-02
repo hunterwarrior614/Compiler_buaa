@@ -1,9 +1,7 @@
 package optimize;
 
-import midend.MidEnd;
 import midend.llvm.instr.IrInstr;
 import midend.llvm.instr.MoveInstr;
-import midend.llvm.instr.phi.PhiInstr;
 import midend.llvm.value.IrBasicBlock;
 import midend.llvm.value.IrFunc;
 import midend.llvm.value.IrGlobalVariable;
