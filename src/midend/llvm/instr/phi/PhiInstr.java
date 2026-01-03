@@ -48,6 +48,11 @@ public class PhiInstr extends IrInstr {
         }
     }
 
+    public void addBlock(IrBasicBlock block, IrValue value) {
+        beforeBlocks.add(block);
+        addUsee(value);
+    }
+
     public void replaceBlock(IrBasicBlock oldBlock, IrBasicBlock newBlock) {
         int index;
         if (this.beforeBlocks.contains(newBlock)) {
