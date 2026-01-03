@@ -4,6 +4,7 @@ import midend.llvm.instr.BranchInstr;
 import midend.llvm.instr.IrInstr;
 import midend.llvm.instr.JumpInstr;
 import midend.llvm.instr.ReturnInstr;
+import midend.llvm.instr.phi.PhiInstr;
 import midend.llvm.value.IrBasicBlock;
 import midend.llvm.value.IrFunc;
 
@@ -67,7 +68,24 @@ public class RemoveUnreachCode extends Optimizer {
                 }
             }
 
-            func.getBasicBlocks().removeIf(b -> !reachable.contains(b));
+            Iterator<IrBasicBlock> it = func.getBasicBlocks().iterator();
+            while (it.hasNext()) {
+                IrBasicBlock block = it.next();
+                if (!reachable.contains(block)) {
+                    for (IrBasicBlock succ : block.getNextBlocks()) {
+                        succ.getBeforeBlocks().remove(block);
+                        for (IrInstr instr : succ.getInstrs()) {
+                            if (instr instanceof PhiInstr phi) {
+                                phi.removeBlock(block);
+                            }
+                        }
+                    }
+                    for (IrInstr instr : block.getInstrs()) {
+                        instr.removeAllUsees();
+                    }
+                    it.remove();
+                }
+            }
         }
     }
 

@@ -285,6 +285,10 @@ public class RemoveDeadCode extends Optimizer {
         if (block.getBeforeBlocks().size() != 1)
             return false;
         IrBasicBlock pred = block.getBeforeBlocks().get(0);
+        if (pred == block)
+            return false;
+        if (!block.getInstrs().isEmpty() && block.getInstrs().get(0) instanceof PhiInstr)
+            return false;
         return pred.getNextBlocks().size() == 1 && pred.getNextBlocks().get(0) == block;
     }
 }

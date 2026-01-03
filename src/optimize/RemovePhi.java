@@ -24,11 +24,18 @@ public class RemovePhi extends Optimizer {
             List<IrBasicBlock> blocks = new ArrayList<>(func.getBasicBlocks());
 
             for (IrBasicBlock block : blocks) {
-                if (block.getInstrs().isEmpty() || !(block.getInstrs().get(0) instanceof PhiInstr)) {
-                    continue;
+                boolean hasPhi = false;
+                for (IrInstr instr : block.getInstrs()) {
+                    if (instr instanceof PhiInstr) {
+                        hasPhi = true;
+                        break;
+                    }
                 }
+                if (!hasPhi)
+                    continue;
 
                 List<ParallelCopyInstr> pcopies = new ArrayList<>();
+                Map<IrBasicBlock, ParallelCopyInstr> pcopyMap = new HashMap<>();
                 for (IrBasicBlock pred : block.getBeforeBlocks()) {
                     ParallelCopyInstr pcopy;
                     if (pred.getNextBlocks().size() > 1) {
@@ -37,6 +44,7 @@ public class RemovePhi extends Optimizer {
                         pcopy = insertCopyAtEnd(pred);
                     }
                     pcopies.add(pcopy);
+                    pcopyMap.put(pred, pcopy);
                 }
 
                 Iterator<IrInstr> it = block.getInstrs().iterator();
@@ -44,12 +52,14 @@ public class RemovePhi extends Optimizer {
                     IrInstr instr = it.next();
                     if (instr instanceof PhiInstr phi) {
                         List<IrValue> incoming = phi.getUsees();
+                        List<IrBasicBlock> phiPreds = phi.getBeforeBlocks();
                         for (int i = 0; i < incoming.size(); i++) {
-                            pcopies.get(i).addCopy(incoming.get(i), phi);
+                            IrBasicBlock pred = phiPreds.get(i);
+                            if (pcopyMap.containsKey(pred)) {
+                                pcopyMap.get(pred).addCopy(incoming.get(i), phi);
+                            }
                         }
                         it.remove();
-                    } else {
-                        break;
                     }
                 }
             }

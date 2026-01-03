@@ -24,6 +24,10 @@ public class PhiInstr extends IrInstr {
         }
     }
 
+    public ArrayList<IrBasicBlock> getBeforeBlocks() {
+        return beforeBlocks;
+    }
+
     public void ConvertBlockToValue(IrValue value, IrBasicBlock block) {
         int index = beforeBlocks.indexOf(block);
         // 进行相应的值替换：原先只会是null
@@ -63,7 +67,8 @@ public class PhiInstr extends IrInstr {
         StringBuilder sb = new StringBuilder();
         sb.append(name).append(" = phi ").append(irBaseType).append(" ");
         for (int i = 0; i < beforeBlocks.size(); i++) {
-            sb.append("[ ").append(usees.get(i).getName()).append(", %").append(beforeBlocks.get(i).getName()).append(" ]");
+            sb.append("[ ").append(usees.get(i).getName()).append(", %").append(beforeBlocks.get(i).getName())
+                    .append(" ]");
             if (i != usees.size() - 1) {
                 sb.append(", ");
             }

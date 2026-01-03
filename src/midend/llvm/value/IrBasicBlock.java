@@ -239,7 +239,11 @@ public class IrBasicBlock extends IrValue {
         jumpInstr.removeAllUsees();
         this.instrs.remove(jumpInstr);
         // 添加下一个基本快的指令
-        nextBlock.instrs.forEach(this::addInstr);
+        for (IrInstr instr : nextBlock.instrs) {
+            this.addInstr(instr);
+            instr.setIrBasicBlock(this);
+        }
+        nextBlock.instrs.clear();
         // 修改next信息
         this.replaceNextBlock(nextBlock);
         // 修改before信息
