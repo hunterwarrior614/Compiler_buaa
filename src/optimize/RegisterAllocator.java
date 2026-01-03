@@ -3,132 +3,434 @@ package optimize;
 import backend.mips.Register;
 import midend.llvm.instr.IrInstr;
 import midend.llvm.instr.MoveInstr;
-import midend.llvm.instr.phi.PhiInstr;
 import midend.llvm.value.IrBasicBlock;
 import midend.llvm.value.IrFunc;
 import midend.llvm.value.IrValue;
+import midend.llvm.value.IrParameter;
 
 import java.util.*;
 
 public class RegisterAllocator {
-    private final List<Register> availableRegisters;
-    private final Map<Register, IrValue> regToValue;
-    private final Map<IrValue, Register> valueToReg;
+    private final IrFunc func;
+    private final List<Register> K_Registers;
+    private final int K;
+
+    private class Node {
+        IrValue value;
+        Set<Node> adjList = new HashSet<>();
+        int degree = 0;
+        Register color = null;
+        Set<Move> moveList = new HashSet<>();
+        Node alias = null;
+        boolean precolored = false;
+
+        public Node(IrValue value) {
+            this.value = value;
+        }
+    }
+
+    private class Move {
+        Node src;
+        Node dst;
+
+        public Move(Node src, Node dst) {
+            this.src = src;
+            this.dst = dst;
+        }
+    }
+
+    private final Map<IrValue, Node> nodeMap = new HashMap<>();
+    private final Set<Node> precolored = new HashSet<>();
+    private final Set<Node> initial = new HashSet<>();
+    private final Set<Node> simplifyWorklist = new LinkedHashSet<>();
+    private final Set<Node> freezeWorklist = new LinkedHashSet<>();
+    private final Set<Node> spillWorklist = new LinkedHashSet<>();
+    private final Set<Node> coalescedNodes = new LinkedHashSet<>();
+    private final Set<Node> coloredNodes = new LinkedHashSet<>();
+    private final Stack<Node> selectStack = new Stack<>();
+
+    private final Set<Move> worklistMoves = new LinkedHashSet<>();
+    private final Set<Move> activeMoves = new HashSet<>();
 
     public RegisterAllocator(IrFunc func) {
-        this.regToValue = new HashMap<>();
-        this.valueToReg = func.getValueRegisterMap();
-        this.availableRegisters = Register.getUsAbleRegisters();
+        this.func = func;
+        this.K_Registers = Register.getUsAbleRegisters();
+        this.K = K_Registers.size();
     }
 
-    public void run(IrBasicBlock entry) {
-        Map<IrValue, IrInstr> lastUses = new HashMap<>();
-        Set<IrValue> definedHere = new HashSet<>();
-        Set<IrValue> killedHere = new HashSet<>();
+    public void run() {
+        // Initialize
+        nodeMap.clear();
+        precolored.clear();
+        initial.clear();
+        simplifyWorklist.clear();
+        freezeWorklist.clear();
+        spillWorklist.clear();
+        coalescedNodes.clear();
+        coloredNodes.clear();
+        selectStack.clear();
+        worklistMoves.clear();
+        activeMoves.clear();
 
-        computeLastUses(entry, lastUses);
-        assignRegistersInBlock(entry, lastUses, definedHere, killedHere);
+        // 1. Build
+        build();
 
-        for (IrBasicBlock child : entry.getImmediateDominatedBlocks()) {
-            processChild(child);
+        // 2. Make Worklist
+        makeWorklist();
+
+        // 3. Loop
+        while (!simplifyWorklist.isEmpty() || !worklistMoves.isEmpty() || !freezeWorklist.isEmpty()
+                || !spillWorklist.isEmpty()) {
+            if (!simplifyWorklist.isEmpty())
+                simplify();
+            else if (!worklistMoves.isEmpty())
+                coalesce();
+            else if (!freezeWorklist.isEmpty())
+                freeze();
+            else selectSpill();
         }
 
-        cleanupDefinitions(definedHere);
-        restoreKilledGlobals(definedHere, killedHere);
+        // 4. Assign Colors
+        assignColors();
     }
 
-    private void computeLastUses(IrBasicBlock block, Map<IrValue, IrInstr> map) {
-        for (IrInstr instr : block.getInstrs()) {
-            for (IrValue op : instr.getUsees()) {
-                map.put(op, instr);
+    private Node getNode(IrValue val) {
+        if (!nodeMap.containsKey(val)) {
+            Node node = new Node(val);
+            nodeMap.put(val, node);
+            if (func.getValueRegisterMap().containsKey(val)) {
+                node.precolored = true;
+                node.color = func.getValueRegisterMap().get(val);
+                node.degree = Integer.MAX_VALUE;
+                precolored.add(node);
+            } else {
+                initial.add(node);
             }
         }
+        return nodeMap.get(val);
     }
 
-    private void assignRegistersInBlock(IrBasicBlock block, Map<IrValue, IrInstr> lastUses,
-            Set<IrValue> defined, Set<IrValue> killed) {
-        for (IrInstr instr : block.getInstrs()) {
-            releaseRegisters(instr, lastUses, killed);
-            allocateRegister(instr, defined);
-        }
-    }
-
-    private void releaseRegisters(IrInstr instr, Map<IrValue, IrInstr> lastUses, Set<IrValue> killed) {
-        if (instr instanceof PhiInstr)
+    private void addEdge(Node u, Node v) {
+        if (u == v || u.adjList.contains(v))
             return;
-
-        for (IrValue op : instr.getUsees()) {
-            if (valueToReg.containsKey(op) &&
-                    lastUses.get(op) == instr &&
-                    !instr.getIrBasicBlock().getOutValueSet().contains(op)) {
-
-                if (isUsedInSuccessorPhiOrMove(op, instr.getIrBasicBlock()))
-                    continue;
-
-                Register reg = valueToReg.get(op);
-                regToValue.remove(reg);
-                killed.add(op);
-            }
+        if (!u.precolored) {
+            u.adjList.add(v);
+            u.degree++;
+        }
+        if (!v.precolored) {
+            v.adjList.add(u);
+            v.degree++;
         }
     }
 
-    private boolean isUsedInSuccessorPhiOrMove(IrValue val, IrBasicBlock block) {
-        for (IrBasicBlock succ : block.getNextBlocks()) {
-            for (IrInstr instr : succ.getInstrs()) {
-                if (instr instanceof MoveInstr move && move.getSrcValue() == val) {
-                    return true;
+    private boolean isAllocatable(IrValue val) {
+        return !(val instanceof midend.llvm.constant.IrConst) &&
+                !(val instanceof midend.llvm.value.IrBasicBlock) &&
+                !(val instanceof midend.llvm.value.IrFunc);
+    }
+
+    private void build() {
+        for (IrParameter param : func.getParams()) {
+            getNode(param);
+        }
+        for (IrBasicBlock block : func.getBasicBlocks()) {
+            for (IrInstr instr : block.getInstrs()) {
+                if (!instr.getIrBaseType().isVoid()) {
+                    getNode(instr);
+                }
+                for (IrValue use : instr.getUsees()) {
+                    if (isAllocatable(use)) {
+                        getNode(use);
+                    }
                 }
             }
         }
-        return false;
-    }
 
-    private void allocateRegister(IrInstr instr, Set<IrValue> defined) {
-        if (instr.getIrBaseType().isVoid() || valueToReg.containsKey(instr))
-            return;
+        for (IrBasicBlock block : func.getBasicBlocks()) {
+            Set<IrValue> live = new HashSet<>(block.getOutValueSet());
+            live.removeIf(v -> !isAllocatable(v));
 
-        defined.add(instr);
-        for (Register reg : availableRegisters) {
-            if (!regToValue.containsKey(reg)) {
-                regToValue.put(reg, instr);
-                valueToReg.put(instr, reg);
-                break;
+            List<IrInstr> instrs = block.getInstrs();
+            for (int i = instrs.size() - 1; i >= 0; i--) {
+                IrInstr instr = instrs.get(i);
+
+                if (instr instanceof MoveInstr move) {
+                    if (isAllocatable(move.getSrcValue()) && isAllocatable(move.getDstValue())) {
+                        Node dst = getNode(move.getDstValue());
+                        Node src = getNode(move.getSrcValue());
+
+                        live.remove(move.getDstValue());
+
+                        Move m = new Move(src, dst);
+                        worklistMoves.add(m);
+                        dst.moveList.add(m);
+                        src.moveList.add(m);
+
+                        for (IrValue l : live) {
+                            Node n = getNode(l);
+                            if (n != src) {
+                                addEdge(dst, n);
+                            }
+                        }
+                        live.add(move.getSrcValue());
+                    } else if (isAllocatable(move.getDstValue())) {
+                        live.remove(move.getDstValue());
+                        Node dst = getNode(move.getDstValue());
+                        for (IrValue l : live) {
+                            addEdge(dst, getNode(l));
+                        }
+                    }
+                } else {
+                    if (!instr.getIrBaseType().isVoid()) {
+                        live.remove(instr);
+                        Node dst = getNode(instr);
+                        for (IrValue l : live) {
+                            addEdge(dst, getNode(l));
+                        }
+                    }
+
+                    for (IrValue use : instr.getUsees()) {
+                        if (isAllocatable(use)) {
+                            live.add(use);
+                        }
+                    }
+                }
+            }
+
+            // Handle parameters definition at the entry block
+            if (block == func.getBasicBlocks().get(0)) {
+                for (IrParameter param : func.getParams()) {
+                    if (live.contains(param)) {
+                        live.remove(param);
+                        Node pNode = getNode(param);
+                        for (IrValue l : live) {
+                            addEdge(pNode, getNode(l));
+                        }
+                    }
+                }
             }
         }
     }
 
-    private void processChild(IrBasicBlock child) {
-        Map<Register, IrValue> backup = new HashMap<>();
-
-        Iterator<Map.Entry<Register, IrValue>> it = regToValue.entrySet().iterator();
+    private void makeWorklist() {
+        Iterator<Node> it = initial.iterator();
         while (it.hasNext()) {
-            Map.Entry<Register, IrValue> entry = it.next();
-            if (!child.getInValueSet().contains(entry.getValue())) {
-                backup.put(entry.getKey(), entry.getValue());
-                it.remove();
+            Node n = it.next();
+            it.remove();
+            if (n.degree >= K) {
+                spillWorklist.add(n);
+            } else if (isMoveRelated(n)) {
+                freezeWorklist.add(n);
+            } else {
+                simplifyWorklist.add(n);
             }
         }
-
-        run(child);
-
-        regToValue.putAll(backup);
     }
 
-    private void cleanupDefinitions(Set<IrValue> defined) {
-        for (IrValue val : defined) {
-            if (valueToReg.containsKey(val)) {
-                Register reg = valueToReg.get(val);
-                if (regToValue.get(reg) == val) {
-                    regToValue.remove(reg);
+    private boolean isMoveRelated(Node n) {
+        return !nodeMoves(n).isEmpty();
+    }
+
+    private Set<Move> nodeMoves(Node n) {
+        Set<Move> moves = new HashSet<>();
+        for (Move m : n.moveList) {
+            if (activeMoves.contains(m) || worklistMoves.contains(m)) {
+                moves.add(m);
+            }
+        }
+        return moves;
+    }
+
+    private void simplify() {
+        Iterator<Node> it = simplifyWorklist.iterator();
+        Node n = it.next();
+        it.remove();
+        selectStack.push(n);
+        for (Node m : getAdjacent(n)) {
+            decrementDegree(m);
+        }
+    }
+
+    private Set<Node> getAdjacent(Node n) {
+        Set<Node> adj = new HashSet<>(n.adjList);
+        selectStack.forEach(adj::remove);
+        adj.removeAll(coalescedNodes);
+        return adj;
+    }
+
+    private void decrementDegree(Node m) {
+        int d = m.degree;
+        m.degree--;
+        if (d == K) {
+            Set<Node> nodes = getAdjacent(m);
+            nodes.add(m);
+            enableMoves(nodes);
+            spillWorklist.remove(m);
+            if (isMoveRelated(m)) {
+                freezeWorklist.add(m);
+            } else {
+                simplifyWorklist.add(m);
+            }
+        }
+    }
+
+    private void enableMoves(Set<Node> nodes) {
+        for (Node n : nodes) {
+            for (Move m : nodeMoves(n)) {
+                if (activeMoves.contains(m)) {
+                    activeMoves.remove(m);
+                    worklistMoves.add(m);
                 }
             }
         }
     }
 
-    private void restoreKilledGlobals(Set<IrValue> defined, Set<IrValue> killed) {
-        for (IrValue val : killed) {
-            if (valueToReg.containsKey(val) && !defined.contains(val)) {
-                regToValue.put(valueToReg.get(val), val);
+    private void coalesce() {
+        Iterator<Move> it = worklistMoves.iterator();
+        Move m = it.next();
+        it.remove();
+
+        Node x = getAlias(m.src);
+        Node y = getAlias(m.dst);
+        Node u, v;
+        if (y.precolored) {
+            u = y;
+            v = x;
+        } else {
+            u = x;
+            v = y;
+        }
+
+        if (u == v) {
+            addWorkList(u);
+        } else if (v.precolored || u.adjList.contains(v)) {
+            addWorkList(u);
+            addWorkList(v);
+        } else if ((u.precolored && checkGeorge(u, v)) || (!u.precolored && checkBriggs(u, v))) {
+            combine(u, v);
+            addWorkList(u);
+        } else {
+            activeMoves.add(m);
+        }
+    }
+
+    private void addWorkList(Node u) {
+        if (!u.precolored && !isMoveRelated(u) && u.degree < K) {
+            freezeWorklist.remove(u);
+            simplifyWorklist.add(u);
+        }
+    }
+
+    private Node getAlias(Node n) {
+        if (coalescedNodes.contains(n)) {
+            return getAlias(n.alias);
+        }
+        return n;
+    }
+
+    private boolean checkGeorge(Node u, Node v) {
+        for (Node t : getAdjacent(v)) {
+            if (!ok(t, u))
+                return false;
+        }
+        return true;
+    }
+
+    private boolean checkBriggs(Node u, Node v) {
+        Set<Node> adj = new HashSet<>(getAdjacent(u));
+        adj.addAll(getAdjacent(v));
+        int k = 0;
+        for (Node n : adj) {
+            if (n.degree >= K)
+                k++;
+        }
+        return k < K;
+    }
+
+    private boolean ok(Node t, Node r) {
+        return t.degree < K || t.precolored || t.adjList.contains(r);
+    }
+
+    private void combine(Node u, Node v) {
+        if (freezeWorklist.contains(v)) {
+            freezeWorklist.remove(v);
+        } else {
+            spillWorklist.remove(v);
+        }
+        coalescedNodes.add(v);
+        v.alias = u;
+        u.moveList.addAll(v.moveList);
+        enableMoves(Collections.singleton(v));
+
+        for (Node t : getAdjacent(v)) {
+            addEdge(t, u);
+            decrementDegree(t);
+        }
+        if (u.degree >= K && freezeWorklist.contains(u)) {
+            freezeWorklist.remove(u);
+            spillWorklist.add(u);
+        }
+    }
+
+    private void freeze() {
+        Iterator<Node> it = freezeWorklist.iterator();
+        Node u = it.next();
+        it.remove();
+        simplifyWorklist.add(u);
+        freezeMoves(u);
+    }
+
+    private void freezeMoves(Node u) {
+        for (Move m : nodeMoves(u)) {
+            Node x = m.src;
+            Node y = m.dst;
+            Node v;
+            if (getAlias(y) == getAlias(u)) {
+                v = getAlias(x);
+            } else {
+                v = getAlias(y);
+            }
+            activeMoves.remove(m);
+            if (nodeMoves(v).isEmpty() && v.degree < K) {
+                freezeWorklist.remove(v);
+                simplifyWorklist.add(v);
+            }
+        }
+    }
+
+    private void selectSpill() {
+        Iterator<Node> it = spillWorklist.iterator();
+        Node n = it.next();
+        it.remove();
+        simplifyWorklist.add(n);
+        freezeMoves(n);
+    }
+
+    private void assignColors() {
+        while (!selectStack.isEmpty()) {
+            Node n = selectStack.pop();
+            Set<Register> okColors = new HashSet<>(K_Registers);
+
+            for (Node w : n.adjList) {
+                Node alias = getAlias(w);
+                if (coloredNodes.contains(alias) || precolored.contains(alias)) {
+                    okColors.remove(alias.color);
+                }
+            }
+
+            if (!okColors.isEmpty()) {
+                coloredNodes.add(n);
+                n.color = okColors.iterator().next();
+            }
+        }
+
+        for (Node n : coalescedNodes) {
+            n.color = getAlias(n).color;
+        }
+
+        for (Node n : nodeMap.values()) {
+            if (n.color != null) {
+                func.getValueRegisterMap().put(n.value, n.color);
             }
         }
     }

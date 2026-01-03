@@ -93,24 +93,32 @@ public class CallInstr extends IrInstr {
 
     // 参数传递
     private void passParams() {
-        // 对于 MIPS，可以将前三个参数通过 $a1 - $a3 四个寄存器传递，但仍需要为其在栈中预留位置
+        // 对于 MIPS，可以将前四个参数通过 $a0 - $a3 四个寄存器传递，但仍需要为其在栈中预留位置
         ArrayList<IrValue> params = getParams();
         int currentStackOffset = MipsBuilder.getCurrentStackOffset();
+
+        // 计算栈参数大小
+        int stackArgsCount = Math.max(0, params.size() - 4);
+        int argsSize = stackArgsCount * 4;
+
+        // 栈参数从 currentStackOffset - argsSize 开始存放
+        int argOffset = currentStackOffset - argsSize;
+
         for (int i = 0; i < params.size(); i++) {
-            if (i < 3) {
+            if (i < 4) {
                 Register paramRegister = Register.getRegister(Register.A0.ordinal() + i);
                 loadIrValue2Register(params.get(i), paramRegister);
-                currentStackOffset -= 4;
             } else {
                 // 其余的参数压入栈
                 loadIrValue2Register(params.get(i), Register.K0);
-                new MipsLsu(MipsLsu.LsuType.SW, Register.K0, Register.SP, currentStackOffset - 4);
-                currentStackOffset -= 4;
+                new MipsLsu(MipsLsu.LsuType.SW, Register.K0, Register.SP, argOffset);
+                argOffset += 4;
             }
         }
 
         // 计算出新的 $sp（整个函数只在此处移动一次栈）
-        new MipsAlu(MipsAlu.AluType.ADDIU, Register.SP, Register.SP, MipsBuilder.getCurrentStackOffset());
+        // 移动量包括 context 和 args
+        new MipsAlu(MipsAlu.AluType.ADDIU, Register.SP, Register.SP, currentStackOffset - argsSize);
     }
 
     // 函数跳转
@@ -120,6 +128,14 @@ public class CallInstr extends IrInstr {
 
     // 恢复现场
     private void recoverContext(ArrayList<Register> allocatedRegisters) {
+        // 先弹出栈参数
+        ArrayList<IrValue> params = getParams();
+        int stackArgsCount = Math.max(0, params.size() - 4);
+        int argsSize = stackArgsCount * 4;
+        if (argsSize > 0) {
+            new MipsAlu(MipsAlu.AluType.ADDIU, Register.SP, Register.SP, argsSize);
+        }
+
         // 从栈顶逆序恢复寄存器
         // 先恢复 $ra 和 $sp
         new MipsLsu(MipsLsu.LsuType.LW, Register.RA, Register.SP, 0);

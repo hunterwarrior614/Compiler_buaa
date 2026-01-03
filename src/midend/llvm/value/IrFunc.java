@@ -4,6 +4,7 @@ import backend.mips.MipsBuilder;
 import backend.mips.Register;
 import backend.mips.assembly.MipsLabel;
 import backend.mips.assembly.text.MipsLsu;
+import backend.mips.assembly.pseudo.MarsMove;
 import midend.llvm.IrBuilder;
 import midend.llvm.instr.JumpInstr;
 import midend.llvm.instr.ReturnInstr;
@@ -17,7 +18,7 @@ import java.util.stream.Collectors;
 public class IrFunc extends IrValue {
     private final ArrayList<IrParameter> parameters;
     private final ArrayList<IrBasicBlock> basicBlocks;
-    private final HashMap<IrValue, Register> ValueRegisterMap;  // value-register 分配表
+    private final HashMap<IrValue, Register> ValueRegisterMap; // value-register 分配表
 
     public IrFunc(String name, IrBaseType returnType) {
         super(IrValueType.FUNCTION, returnType, name);
@@ -25,7 +26,6 @@ public class IrFunc extends IrValue {
         basicBlocks = new ArrayList<>();
         ValueRegisterMap = new HashMap<>();
     }
-
 
     public String getReturnTypeString() {
         if (irBaseType == null) {
@@ -54,6 +54,10 @@ public class IrFunc extends IrValue {
 
     public void addParameter(IrParameter irParameter) {
         parameters.add(irParameter);
+    }
+
+    public ArrayList<IrParameter> getParams() {
+        return parameters;
     }
 
     public void checkReturn() {
@@ -100,9 +104,29 @@ public class IrFunc extends IrValue {
         for (int i = 0; i < parameters.size(); i++) {
             // 为形参在栈上分配空间，并将传入寄存器中的值保存到该空间
             Integer offset = MipsBuilder.allocateStackSpaceForIrValue(parameters.get(i));
-            if (i < 3) {
+            if (i < 4) {
                 Register argReg = Register.getRegister(Register.A0.ordinal() + i);
                 new MipsLsu(MipsLsu.LsuType.SW, argReg, Register.SP, offset);
+
+                // 如果该参数被分配了寄存器，则将参数寄存器的值移动到分配的寄存器中
+                Register allocatedReg = ValueRegisterMap.get(parameters.get(i));
+                if (allocatedReg != null) {
+                    new MarsMove(allocatedReg, argReg);
+                }
+            } else {
+                // 对于栈传递的参数，从 caller 的栈帧中加载
+                // 参数在 caller 栈帧的底部，即当前 $sp + (i-4)*4
+                int argOffset = (i - 4) * 4;
+
+                Register allocatedReg = ValueRegisterMap.get(parameters.get(i));
+                if (allocatedReg != null) {
+                    // 如果分配了寄存器，直接加载到寄存器
+                    new MipsLsu(MipsLsu.LsuType.LW, allocatedReg, Register.SP, argOffset);
+                } else {
+                    // 如果没有分配寄存器（溢出到栈），先加载到 K0，再保存到本地栈帧
+                    new MipsLsu(MipsLsu.LsuType.LW, Register.K0, Register.SP, argOffset);
+                    new MipsLsu(MipsLsu.LsuType.SW, Register.K0, Register.SP, offset);
+                }
             }
         }
 

@@ -9,7 +9,7 @@ public class AllocateRegister extends Optimizer {
         for (IrFunc func : MidEnd.getIrModule().getIrFuncs()) {
             RegisterAllocator allocator = new RegisterAllocator(func);
             if (!func.getBasicBlocks().isEmpty()) {
-                allocator.run(func.getBasicBlocks().get(0));
+                allocator.run();
             }
         }
     }
