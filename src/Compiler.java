@@ -1,4 +1,6 @@
 import backend.BackEnd;
+
+import error.ErrorRecorder;
 import frontend.FrontEnd;
 import midend.MidEnd;
 import utils.IOHandler;
@@ -14,9 +16,11 @@ public class Compiler {
         FrontEnd.generateAstTree();     // 语法分析
 
         MidEnd.generateSymbolTable();   // 语义分析
-        MidEnd.generateLlvmIr();        // LLVM IR 中间代码生成
 
-        BackEnd.generateMips();         // Mips 目标代码生成
+        if (!ErrorRecorder.hasErrors()) {
+            MidEnd.generateLlvmIr();        // LLVM IR 中间代码生成
+            BackEnd.generateMips();         // Mips 目标代码生成
+        }
 
         int stage = 5;  // 词法(1)，语法(2)，语义(3)
         IOHandler.print(stage);

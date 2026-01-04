@@ -43,15 +43,13 @@ public class IOHandler {
 
     public static void print(int stage) throws IOException {
         if (ErrorRecorder.hasErrors()) {
-            IOHandler.printError(stage);
+            printError(stage);
         } else {
-            switch (stage) {
-                case 1 -> IOHandler.printTokenList(); // 输出词法分析
-                case 2 -> IOHandler.printAstTree();   // 输出语法分析
-                case 3 -> IOHandler.printSymbolTable();   // 输出语义分析
-                case 4 -> IOHandler.printLlvmIr();
-                case 5 -> IOHandler.printMips();
-            }
+            printTokenList(); // 输出词法分析
+            printAstTree();   // 输出语法分析
+            printSymbolTable();   // 输出语义分析
+            printLlvmIr();
+            printMips();
         }
     }
 
@@ -115,7 +113,7 @@ public class IOHandler {
                     }
                     break;
                 // 全部输出
-                case 3:
+                default:
                     filteredErrors.add(error);
             }
         }
