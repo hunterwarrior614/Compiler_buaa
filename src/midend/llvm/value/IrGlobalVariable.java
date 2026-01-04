@@ -24,6 +24,6 @@ public class IrGlobalVariable extends IrUser {
 
     @Override
     public String getOriginName() {
-        return "." + super.getOriginName();
+        return super.getOriginName() + ".";
     }
 }
