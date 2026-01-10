@@ -27,7 +27,6 @@ public class VisitorStmt {
             case ReturnStmt -> visitReturnStmt(stmt);
             case AssignStmt -> visitAssignStmt(stmt);
             case BlockStmt -> visitBlockStmt(stmt);
-            case GetIntStmt -> visitGetIntStmt(stmt);
             case PrintStmt -> visitPrintStmt(stmt);
             case ExpStmt -> visitExpStmt(stmt);
             case IfStmt -> visitIfStmt(stmt);
@@ -66,16 +65,6 @@ public class VisitorStmt {
         VisitorBlock.visitBlock(block);
 
         SymbolManager.goBackToParentSymbolTable();
-    }
-
-    private static void visitGetIntStmt(Stmt stmt) {
-        // LVal '=' 'getint()' ';'
-        LVal lVal = stmt.getAssignLVal();
-        IrValue lValue = VisitorLVal.visitLVal(lVal, true);
-        // 先获得getint的值
-        GetIntInstr getIntInstr = new GetIntInstr();
-        // 再将值赋给lValue
-        new StoreInstr(getIntInstr, lValue);
     }
 
     private static void visitPrintStmt(Stmt stmt) {

@@ -103,6 +103,9 @@ public class LVal extends Node {
         if (valueSymbol.getType().equals(SymbolType.CONST_INT)) {
             return true;
         } else if (valueSymbol.getType().equals(SymbolType.CONST_INT_ARRAY)) {
+            if (components.size() == 1) {
+                return false;   // 数组无法获取值
+            }
             return ((Exp) components.get(2)).canCompute();
         }
         return false;
