@@ -126,11 +126,17 @@ public class VisitorDecl {
         else {
             if (varDef.hasInitVal()) {
                 ArrayList<Exp> initList = varDef.getInitVal().getExpList();
-                for (int i = 0; i < initList.size(); i++) {
+                int i = 0;
+                for (; i < initList.size(); i++) {
                     IrValue initValue = VisitorExp.visitExp(initList.get(i));
                     GetElemInstr getElemInstr = new GetElemInstr(allocateInstr, new IrConstInt(i)); // 获取第i个数组元素
 
                     new StoreInstr(initValue, getElemInstr);    // 将初值赋给元素
+                }
+                int len = valueSymbol.getLength();
+                for (; i < len; i++) {
+                    GetElemInstr getElemInstr = new GetElemInstr(allocateInstr, new IrConstInt(i)); // 获取第i个数组元素
+                    new StoreInstr(new IrConstInt(0), getElemInstr);    // 将初值赋给元素
                 }
             }
         }

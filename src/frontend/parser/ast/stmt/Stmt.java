@@ -40,7 +40,6 @@ public class Stmt extends Node {
         ContinueStmt,
         // 库函数
         PrintStmt,
-        GetIntStmt,
     }
 
     private StmtType stmtType;
@@ -138,15 +137,10 @@ public class Stmt extends Node {
             lval.parse();
             // LVal '=' Exp ';'
             if (getCurrentToken().getType().equals(TokenType.ASSIGN)) {
+                stmtType = StmtType.AssignStmt;
                 reset(originPos, errorCount);   // 回溯
                 addAndParseNode(new LVal());    // LVal
                 addAndParseNode(new TokenNode());   // '='
-                // LLVM IR 部分，判断是否是getint
-                if (getCurrentToken().getContent().equals("getint")) {
-                    stmtType = StmtType.GetIntStmt;
-                } else {
-                    stmtType = StmtType.AssignStmt;
-                }
                 addAndParseNode(new Exp()); // Exp
                 checkSemicolon();   // ';'
             }
